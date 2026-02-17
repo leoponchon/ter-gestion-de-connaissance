@@ -113,7 +113,8 @@ async function processMessage(message) {
   } catch (error) {
     console.error("\n[ERR] Error:", error.message);
     console.error(error.stack);
-    await message.reply("Désolé, une erreur est survenue: " + error.message);
+    // Utiliser channel.send au lieu de reply pour éviter l'erreur si le message n'existe plus
+    await message.channel.send("Désolé, une erreur est survenue: " + error.message);
   }
 }
 
