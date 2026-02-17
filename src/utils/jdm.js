@@ -118,6 +118,23 @@ export async function getJDMRelations(termName, direction = "both", relationType
   try {
     const relationTypesMap = await fetchRelationTypes();
 
+    // Récupérer l'ID du terme interrogé pour l'afficher
+    let termInfo = null;
+    try {
+      const searchTerm = await fetchSearchTerm(termName);
+      if (searchTerm?.id) {
+        termInfo = {
+          id: searchTerm.id,
+          name: searchTerm.name || termName,
+          type: searchTerm.type,
+          weight: searchTerm.w
+        };
+      }
+    } catch (e) {
+      // Si la recherche échoue, on continue sans l'ID
+      console.warn(`Impossible de récupérer l'ID du terme "${termName}":`, e.message);
+    }
+
     const promises = [];
     let outgoingData = { nodes: [], relations: [] };
     let incomingData = { nodes: [], relations: [] };
@@ -157,6 +174,10 @@ export async function getJDMRelations(termName, direction = "both", relationType
       return {
         success: true,
         term: termName,
+        termId: termInfo?.id || null,
+        termName: termInfo?.name || termName,
+        termType: termInfo?.type || null,
+        termWeight: termInfo?.weight || null,
         direction,
         relationType: relationType || "all",
         limit,
