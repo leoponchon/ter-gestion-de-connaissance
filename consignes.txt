@@ -1,0 +1,71 @@
+L'idée : faire un chatbot de gestion de connaissance.
+Dans le projet, sauf si on tient vraiment à faire un truc customisé, la partie tech du chatbot (interaction, faire passer les messages) ça a toujours été fait via Discord, car il y a tout ce qu'il faut pour faire des chatbots dans Discord.
+
+Important : Organisation du dialogue et des connaissances, on discute avec le chatbot via Discord, en lui donnant des informations, et il va réagir en nous demandant de lui en donner.
+
+Dans le sujet, c'était le bot qui prenait l'initiative, nous, on veut plutot que l'utilisateur commence par « bonjour le bot, tu veux qu'on discute ? » et le bot pose des questions en rapport avec le projet "jeu de mots".
+
+Jeu de mots, c’est une base de connaissances sous forme de graphe, et c'est là qu'il va y piocher des informations.
+Il y a une API, on va aller taper dedans via cette dernière.
+
+Donc il y aura son API + notre BDD à nous, il choisit des choses en attente dans notre base (un élément donné par un utilisateur avant) et un batch d'utilisateurs va répondre oui, non, etc.
+
+On a un ID d'utilisateur (ID client discord). On va retenir toutes les infos qu'un utilisateur Discord a données au chatbot, soit de lui-même, soit les réponses données aux questions du bot.
+
+L'idée, c'est que si Léo Faucon dit au chatbot « un hotdog contient de la moutarde », le chatbot va le retenir.
+Ensuite, quand Léo Ponchon vient et qu'il dit « c'est vrai qu'un hotdog contient de la moutarde ? », en fonction de la réponse de ce dernier, il va valider ou garder incertain.
+
+L'idée, c'est que quand quelqu'un donne une info, le chatbot essaie de la valider en demandant à d'autres utilisateurs.
+
+Si tout le monde dit oui ou  que tout le monde dit non, l'info est validée, sinon c'est incertain et on prend un nouvel échantillon.
+
+Il faut un niveau de confiance par utilisateur, pour identifier les trolls qui disent n'importe quoi.
+
+L'objectif final est de compléter ou corriger jeu de mots, par exemple, si plein d'utilisateurs disent non au fait qu'un hotdog est un type de salade (ce qui est vrai dans jeu de mots), alors on corrige jeu de mots en maintenant un niveau de confiance par utilisateur.
+
+Attention : Imaginons qu'il est nul en bagnole, il dit n'importe quoi dessus, mais il est bon sur le reste, il faut prendre ça en compte.
+
+Quand on discute avec le chatbot relationnel, on commence par afficher les relations de jeuxdemots avec r_has_part, etc.
+Ensuite, on affinera avec un mode en français où là on analyse ce que l'utilisateur a dit et on le traduit dans la relation que le bot doit comprendre via l'API.
+
+On peut utiliser des analyseurs de langage, et utiliser des regex (comprendre que contient = r_has_part, etc.).
+
+Si il hésite entre deux, il faut reformuler, il faut pas dire les relations explicitement comme « voulez-vous dire r_has_part ou r_lieu ? ».
+
+Il faut analyser et exposer les stratégies en mettant en évidence les points faibles et forts pour être capable de décoder ce que dit l'utilisateur.
+
+Type : c'est r_has_part, mot source : c'est hot dog, mot cible : c'est moutarde. Il y a un poids positif si relation vraie, poids négatif si relation fausse.
+
+Le fait qu'elle soit là et négative, c'est qu'on a décidé que la relation était fausse, mais elle existe toujours.
+
+Points de vigilance : les termes sont souvent polysémiques, moutarde c'est à la fois la plante et la sauce.
+
+Souvent il y a le terme général, mais ils peuvent être affinés en différents sens, donc ça peut être intéressant de travailler sur le raffinement en vérifiant, ça peut être vrai dans un sens, mais pas dans l'autre aussi.
+Frégate = bateau et oiseau. Est-ce qu'une frégate a une coque ? Oui, c'est vrai, mais attention, c'est vrai pour le bateau mais pas l'oiseau.
+
+Au niveau du dialogue : essayer de faire un dialogue un peu cohérent. On sélectionne une relation, mais il faut que ça apparaisse dans du contexte, la discussion doit avoir un sens.
+Le chatbot doit pouvoir poser des questions autour d'un certain thème et, s'il veut changer de thème, il le dit.
+
+Au niveau des annotations : hotdog r_has_part oniongrillé, l'utilisateur dit "oui, c'est vrai aux USA". une annotation dit qu'elle est possiblement vraie mais parfois peut être fausse.
+En gros, annotation = pertinent, non pertinent, parfois, peut-être, etc.
+Dire qu'une saucisse contient des atomes, c'est vrai mais pas pertinent, ça peut être déduit par inférence.
+
+L'inférence de base, c'est la déduction : si on donne une relation souris r_has_part dents, on veut savoir si c'est plutôt vrai ou faux, on peut vérifier dans la BDD si c'est vrai ou faux, elle nous dira oui, non ou j'en sais rien.
+On fait un calcul pour savoir si c'est crédible ou pas qu'elle ait des dents, c'est indépendant de savoir si elle existe ou pas.
+Quand la base dit « j'en sais rien » (ça n'existe pas), on essaie de trouver pour la souris un type générique r_is_a rongeur qui lui a la relation dent, alors c'est gagné (oui, il est crédible de dire que la souris a comme partie des dents, car la souris est un rongeur et le rongeur a des dents).
+r_lieu : il y a de la vraie transitivité, par ex. la tour Eiffel est dans Paris et Paris a pour lieu France, donc la tour Eiffel est en France.
+r_has_part : une voiture a comme partie un piston (par capté ça allait trop vite).
+
+
+Faire google doc, framadoc, etc partagé où on s'invite nous et le prof, c'est le journal de bord
+Tout ce qu'on fait dans le projet, qu'on tente de faire, même les idées cons on met tout dedans, faut analyser pourquoi elle est con par exemple
+Si on trouve des API ou quoi que ce soit qui nous aide faut le mettre, on met vraiment tout
+
+Quand il sera venu le temps de rédiger le rapport on se basera dessus, ça permettra d'avoir une base solide pour rédiger
+Notre rapport servira à d'autre gens de pas perdre de temps, par exemple ça leur évite de perdre du temps sur des fausses bonnes idées qu'on aura déjà tenté
+
+Liens :
+Jeu d'associations de termes, très sympa et amusant.
+Mots à collectionner, capturer. Trouver les associations les plus pertinentes.
+http://www.jeuxdemots.org/jdm-about.php
+API jeuxDeMots ici : https://jdm-api.demo.lirmm.fr/schema
