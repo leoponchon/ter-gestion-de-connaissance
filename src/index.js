@@ -3,11 +3,14 @@ import http from "http";
 import config from "./config.js";
 import readyHandler from "./events/ready.js";
 import messageCreateHandler from "./events/messageCreate.js";
+import interactionCreateHandler from "./events/interactionCreate.js";
+
 
 const client = new Client({ intents: config.intents });
 
 readyHandler(client);
 messageCreateHandler(client);
+interactionCreateHandler(client);
 
 console.log("Initialisation...\n");
 client.login(config.token);
