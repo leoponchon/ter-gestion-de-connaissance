@@ -143,7 +143,7 @@ async function processMessage(message) {
     }
 
     let finalResponse = "";
-    let maxIterations = 5;
+    let maxIterations = 8;
     let llmFailed = false;
     
     try {
