@@ -143,7 +143,7 @@ async function processMessage(message) {
     }
 
     let finalResponse = "";
-    let maxIterations = 8;
+    let maxIterations = 10;
     let llmFailed = false;
     
     try {
@@ -163,6 +163,7 @@ async function processMessage(message) {
           if (toolName === "search_jdm_term") toolResult = await TOOL_FUNCTIONS.search_jdm_term(toolArgs.term);
           else if (toolName === "get_jdm_relations") toolResult = await TOOL_FUNCTIONS.get_jdm_relations(toolArgs.termName, toolArgs.direction, toolArgs.relationType, toolArgs.limit);
           else if (toolName === "get_relation_types") toolResult = await TOOL_FUNCTIONS.get_relation_types();
+          else if (toolName === "infer_relation") toolResult = await TOOL_FUNCTIONS.infer_relation(toolArgs.source, toolArgs.relation, toolArgs.target);
 
           messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify(toolResult) });
         }
