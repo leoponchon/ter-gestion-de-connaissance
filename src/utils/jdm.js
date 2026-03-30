@@ -1,5 +1,4 @@
 import axios from "axios";
-import { inferRelation, checkCredibility, checkPolysemy } from "./inference.js";
 
 const JDM_API_BASE_URL = "https://jdm-api.demo.lirmm.fr";
 
@@ -266,32 +265,12 @@ export const TOOLS = [
       description: "Retourne la liste de tous les types de relations disponibles dans JeuxDeMots.",
       parameters: { type: "object", properties: {} }
     }
-  },
-  {
-    type: "function",
-    function: {
-      name: "infer_relation",
-      description: "Vérifie si une relation entre deux termes existe directement ou peut être déduite par inférence (triangle logique via is_a, transitivité, synonymie, hyponymie, agent/action). Utilise cet outil quand la relation directe n'est pas trouvée, ou pour vérifier la crédibilité d'une affirmation utilisateur.",
-      parameters: {
-        type: "object",
-        properties: {
-          source: { type: "string", description: "Le terme source (ex: 'souris', 'Tour Eiffel')" },
-          relation: {
-            type: "string",
-            enum: [...Object.keys(RELATION_TYPE_IDS), "peut"],
-            description: "Le type de relation à vérifier (ex: 'r_has_part', 'r_lieu', 'r_isa'). Utiliser 'peut' pour les questions de type 'X peut-il faire Y?'"
-          },
-          target: { type: "string", description: "Le terme cible (ex: 'dents', 'France')" }
-        },
-        required: ["source", "relation", "target"]
-      }
-    }
   }
 ];
 
 export const TOOL_FUNCTIONS = {
   search_jdm_term: searchJDMTerm,
   get_jdm_relations: getJDMRelations,
-  get_relation_types: getRelationTypes,
-  infer_relation: async (source, relation, target) => await inferRelation(source, relation, target)
+  get_relation_types: getRelationTypes
+  // infer_relation is handled directly in messageCreate.js to avoid circular dependency
 };

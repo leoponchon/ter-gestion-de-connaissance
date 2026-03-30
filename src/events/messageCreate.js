@@ -155,7 +155,7 @@ async function processMessage(message) {
 
         messages.push({ role: "assistant", content: response.content || "", tool_calls: response.tool_calls });
 
-        for (const toolCall of response.tool_calls) {
+         for (const toolCall of response.tool_calls) {
           const toolName = toolCall.function.name;
           const toolArgs = JSON.parse(toolCall.function.arguments);
           let toolResult;
@@ -163,10 +163,12 @@ async function processMessage(message) {
           if (toolName === "search_jdm_term") toolResult = await TOOL_FUNCTIONS.search_jdm_term(toolArgs.term);
           else if (toolName === "get_jdm_relations") toolResult = await TOOL_FUNCTIONS.get_jdm_relations(toolArgs.termName, toolArgs.direction, toolArgs.relationType, toolArgs.limit);
           else if (toolName === "get_relation_types") toolResult = await TOOL_FUNCTIONS.get_relation_types();
-          else if (toolName === "infer_relation") toolResult = await TOOL_FUNCTIONS.infer_relation(toolArgs.source, toolArgs.relation, toolArgs.target);
 
           messages.push({ role: "tool", tool_call_id: toolCall.id, content: JSON.stringify(toolResult) });
         }
+
+        // Délai entre les itérations pour éviter le rate limit (429)
+        await new Promise(r => setTimeout(r, 2000));
       }
     } catch (error) {
       llmFailed = true;
