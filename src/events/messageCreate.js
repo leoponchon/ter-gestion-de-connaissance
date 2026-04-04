@@ -37,7 +37,7 @@ function detectTopic(text) {
 
   const patterns = [
     /pourquoi\s+(?:un|une|le|la|les|l')?\s*([a-zA-ZÀ-ÿ0-9\- ]+?)\s+(?:est|a|fait|peut|se trouve)/i,
-    /parle[- ]?moi\s+de\s+([a-zA-ZÀ-ÿ0-9\- ]+)/i,
+    /parle[- ]?moi\s+(?:de|du|des|de la|de l')\s+([a-zA-ZÀ-ÿ0-9\- ]+)/i,
     /infos?\s+sur\s+([a-zA-ZÀ-ÿ0-9\- ]+)/i,
     /(?:un|une|le|la|les|l')\s*([a-zA-ZÀ-ÿ0-9\- ]+?)\s+(?:est|a|fait|peut|contient|se trouve)/i
   ];
@@ -138,6 +138,12 @@ async function processMessage(message) {
   const detectedTopic = detectTopic(userMessage);
   const whyInfo = detectWhyClaim(userMessage);
   const whyQuestion = isWhyQuestion(userMessage);
+
+  // pour verifier la memoire
+  console.log("[TOPIC] previousTopic:", previousTopic);
+  console.log("[TOPIC] detectedTopic:", detectedTopic);
+  console.log("[TOPIC] whyQuestion:", whyQuestion);
+  console.log("[TOPIC] whyInfo:", whyInfo);
 
   try {
     //RECHERCHE DE CONNAISSANCES EN ATTENTE (n-grams)
