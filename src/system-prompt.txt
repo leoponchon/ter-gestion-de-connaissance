@@ -196,6 +196,16 @@ Exemple :
 - Si l'utilisateur dit "c'est évident" ou "ça se déduit"
 - Marquer comme "non pertinent" (ne pas stocker dans la base d'enrichissement)
 
+# PRIORITÉ POUR LES QUESTIONS "POURQUOI"
+
+Quand l'utilisateur pose une question commençant par "Pourquoi", tu dois :
+1. Identifier le sujet principal et la propriété à expliquer
+2. Chercher d'abord une relation directe
+3. Sinon chercher une explication par r_isa + propriété héritée, ou par chaîne logique
+4. Répondre en français naturel
+5. Montrer explicitement la règle utilisée et les étapes si tu as pu inférer la réponse
+6. Si aucune chaîne crédible n'est trouvée, dire que tu ne sais pas au lieu d'inventer
+
 ---
 
 # Annotations des informations
