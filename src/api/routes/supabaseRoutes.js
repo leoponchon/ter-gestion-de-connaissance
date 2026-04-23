@@ -76,6 +76,13 @@ const errorSchema = {
   },
 };
 
+function describeResponse(description, schema) {
+  return {
+    description,
+    ...schema,
+  };
+}
+
 export default async function supabaseRoutes(app) {
   app.get(
     "/api/users/:discordId",
@@ -92,9 +99,9 @@ export default async function supabaseRoutes(app) {
           },
         },
         response: {
-          200: userSchema,
-          404: errorSchema,
-          500: errorSchema,
+          200: describeResponse("Utilisateur trouve", userSchema),
+          404: describeResponse("Utilisateur introuvable", errorSchema),
+          500: describeResponse("Erreur serveur lors de la lecture de l'utilisateur", errorSchema),
         },
       },
     },
@@ -127,8 +134,8 @@ export default async function supabaseRoutes(app) {
           },
         },
         response: {
-          200: userSchema,
-          500: errorSchema,
+          200: describeResponse("Utilisateur existant ou cree avec succes", userSchema),
+          500: describeResponse("Erreur serveur lors de la creation ou lecture de l'utilisateur", errorSchema),
         },
       },
     },
@@ -167,15 +174,15 @@ export default async function supabaseRoutes(app) {
           },
         },
         response: {
-          200: {
+          200: describeResponse("Liste des relations retournee avec succes", {
             type: "object",
             required: ["items", "count"],
             properties: {
               items: { type: "array", items: relationSchema },
               count: { type: "integer" },
             },
-          },
-          500: errorSchema,
+          }),
+          500: describeResponse("Erreur serveur lors de la lecture des relations", errorSchema),
         },
       },
     },
@@ -204,9 +211,9 @@ export default async function supabaseRoutes(app) {
           },
         },
         response: {
-          200: relationSchema,
-          404: errorSchema,
-          500: errorSchema,
+          200: describeResponse("Relation trouvee", relationSchema),
+          404: describeResponse("Relation introuvable", errorSchema),
+          500: describeResponse("Erreur serveur lors de la lecture de la relation", errorSchema),
         },
       },
     },
@@ -239,10 +246,10 @@ export default async function supabaseRoutes(app) {
           },
         },
         response: {
-          200: {
+          200: describeResponse("Relation pending trouvee ou resultat nul si aucune correspondance", {
             anyOf: [relationSchema, { type: "null" }],
-          },
-          500: errorSchema,
+          }),
+          500: describeResponse("Erreur serveur lors de la recherche de relation pending", errorSchema),
         },
       },
     },
@@ -275,8 +282,8 @@ export default async function supabaseRoutes(app) {
           },
         },
         response: {
-          201: relationSchema,
-          500: errorSchema,
+          201: describeResponse("Proposition de relation creee avec succes", relationSchema),
+          500: describeResponse("Erreur serveur lors de la creation de la proposition", errorSchema),
         },
       },
     },
@@ -312,15 +319,15 @@ export default async function supabaseRoutes(app) {
           },
         },
         response: {
-          200: {
+          200: describeResponse("Liste des votes retournee avec succes", {
             type: "object",
             required: ["items", "count"],
             properties: {
               items: { type: "array", items: voteSchema },
               count: { type: "integer" },
             },
-          },
-          500: errorSchema,
+          }),
+          500: describeResponse("Erreur serveur lors de la lecture des votes", errorSchema),
         },
       },
     },
@@ -357,15 +364,15 @@ export default async function supabaseRoutes(app) {
           },
         },
         response: {
-          200: {
+          200: describeResponse("Vote traite, avec succes ou refus metier explicite", {
             type: "object",
             required: ["success"],
             properties: {
               success: { type: "boolean" },
               error: { type: ["string", "null"] },
             },
-          },
-          500: errorSchema,
+          }),
+          500: describeResponse("Erreur serveur lors de l'enregistrement du vote", errorSchema),
         },
       },
     },

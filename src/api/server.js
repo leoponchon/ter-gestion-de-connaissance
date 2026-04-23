@@ -3,6 +3,13 @@ import swagger from "@fastify/swagger";
 import supabaseRoutes from "./routes/supabaseRoutes.js";
 import { getSupabaseHealth } from "../utils/supabase.js";
 
+function describeResponse(description, schema) {
+  return {
+    description,
+    ...schema,
+  };
+}
+
 function buildRedocHtml() {
   return `<!DOCTYPE html>
 <html lang="fr">
@@ -72,7 +79,7 @@ export async function buildApiServer({ client } = {}) {
         tags: ["System"],
         summary: "Verifier l'etat du bot et de Supabase",
         response: {
-          200: {
+          200: describeResponse("Etat general de l'application", {
             type: "object",
             required: ["ok", "supabase", "discord"],
             properties: {
@@ -93,15 +100,15 @@ export async function buildApiServer({ client } = {}) {
                 },
               },
             },
-          },
-          500: {
+          }),
+          500: describeResponse("Erreur lors de la verification de sante", {
             type: "object",
             required: ["ok", "error"],
             properties: {
               ok: { type: "boolean" },
               error: { type: "string" },
             },
-          },
+          }),
         },
       },
     },
