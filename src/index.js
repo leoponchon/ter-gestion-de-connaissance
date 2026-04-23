@@ -1,10 +1,9 @@
 import { Client } from "discord.js";
-import http from "http";
 import config from "./config.js";
 import readyHandler from "./events/ready.js";
 import messageCreateHandler from "./events/messageCreate.js";
 import interactionCreateHandler from "./events/interactionCreate.js";
-
+import { buildApiServer } from "./api/server.js";
 
 const client = new Client({ intents: config.intents });
 
@@ -12,26 +11,42 @@ readyHandler(client);
 messageCreateHandler(client);
 interactionCreateHandler(client);
 
-console.log("Initialisation...\n");
-client.login(config.token);
+const host = process.env.HOST || "0.0.0.0";
+const port = parseInt(process.env.PORT || "8080", 10);
 
-// Serveur HTTP pour garder le bot actif sur Render
-const port = parseInt(process.env.PORT) || 8080;
-const server = http.createServer((req, res) => {
-  res.writeHead(200, { "Content-Type": "text/plain" });
-  res.end("Bot is running\n");
-});
+async function start() {
+  console.log("Initialisation...\n");
 
-server.listen(port, () => {
-  console.log(
-    `Serveur HTTP sur le port ${port} pour que Render ne fasse pas un timed out`,
-  );
-});
+  const apiServer = await buildApiServer({ client });
+  await apiServer.listen({ host, port });
+  console.log(`API Fastify disponible sur http://${host}:${port}`);
+  console.log(`Documentation Redoc disponible sur http://${host}:${port}/docs`);
 
-// Arrêt propre du bot avec Ctrl+C
-process.on("SIGINT", () => {
-  console.log("\nArret...");
-  client.destroy();
-  server.close();
-  process.exit(0);
+  await client.login(config.token);
+
+  const shutdown = async (signal) => {
+    console.log(`\n${signal} recu, arret en cours...`);
+
+    try {
+      await apiServer.close();
+    } catch (error) {
+      console.error("Erreur fermeture API:", error.message);
+    }
+
+    try {
+      client.destroy();
+    } catch (error) {
+      console.error("Erreur fermeture Discord:", error.message);
+    }
+
+    process.exit(0);
+  };
+
+  process.on("SIGINT", () => shutdown("SIGINT"));
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+}
+
+start().catch((error) => {
+  console.error("Echec du demarrage:", error);
+  process.exit(1);
 });

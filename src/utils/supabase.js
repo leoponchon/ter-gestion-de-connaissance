@@ -1,122 +1,234 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
-export const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_KEY;
+
+export const supabase = createClient(supabaseUrl, supabaseKey);
+
+const RELATION_SELECT = `
+    id,
+    discord_id,
+    terme_source,
+    type_relation,
+    terme_cible,
+    est_vrai,
+    contexte_annotation,
+    statut,
+    created_at,
+    users ( trust_score )
+`;
+
+function clampLimit(limit, defaultValue = 20, max = 100) {
+  const parsed = Number(limit);
+
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return defaultValue;
+  }
+
+  return Math.min(Math.trunc(parsed), max);
+}
+
+function isNotFoundError(error) {
+  return error?.code === "PGRST116";
+}
+
+function buildTermSearchFilter(term) {
+  return `terme_source.ilike.%${term}%,terme_cible.ilike.%${term}%`;
+}
+
+export async function getUserByDiscordId(discordId) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("discord_id, trust_score, created_at")
+    .eq("discord_id", discordId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Erreur lors de la lecture de l'utilisateur: ${error.message}`);
+  }
+
+  return data;
+}
 
 /**
  * Vérifie si un utilisateur existe dans la base, sinon le crée avec 50% de confiance.
  */
 export async function ensureUserExists(discordId) {
+  const existingUser = await getUserByDiscordId(discordId);
+  if (existingUser) return existingUser;
 
-    let { data: user, error } = await supabase
-        .from('users')
-        .select('discord_id, trust_score')
-        .eq('discord_id', discordId)
-        .single();
+  const { data: newUser, error: insertError } = await supabase
+    .from("users")
+    .insert([{ discord_id: discordId, trust_score: 0.5 }])
+    .select("discord_id, trust_score, created_at")
+    .single();
 
-    // S'il n'existe pas, on l'ajoute
-    if (!user) {
-        const { data: newUser, error: insertError } = await supabase
-            .from('users')
-            .insert([{ discord_id: discordId, trust_score: 0.5 }])
-            .select()
-            .single();
+  if (insertError) {
+    console.error("Erreur lors de la création de l'utilisateur :", insertError.message);
+    return null;
+  }
 
-        if (insertError) {
-            console.error("Erreur lors de la création de l'utilisateur :", insertError.message);
-            return null;
-        }
-        return newUser;
-    }
+  return newUser;
+}
 
-    return user;
+export async function listRelations(filters = {}) {
+  const {
+    status,
+    term,
+    discordId,
+    relationType,
+    limit = 20,
+  } = filters;
+
+  let query = supabase
+    .from("relations")
+    .select(RELATION_SELECT)
+    .order("created_at", { ascending: false })
+    .limit(clampLimit(limit));
+
+  if (status) query = query.eq("statut", status);
+  if (discordId) query = query.eq("discord_id", discordId);
+  if (relationType) query = query.eq("type_relation", relationType);
+  if (term) query = query.or(buildTermSearchFilter(term));
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Erreur lors de la lecture des relations: ${error.message}`);
+  }
+
+  return data ?? [];
+}
+
+export async function getRelationById(relationId) {
+  const { data, error } = await supabase
+    .from("relations")
+    .select(RELATION_SELECT)
+    .eq("id", relationId)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Erreur lors de la lecture de la relation: ${error.message}`);
+  }
+
+  return data;
+}
+
+export async function listVotes(filters = {}) {
+  const { relationId, discordId, limit = 50 } = filters;
+
+  let query = supabase
+    .from("validate")
+    .select("id, relation_id, discord_id, vote, created_at")
+    .order("created_at", { ascending: false })
+    .limit(clampLimit(limit, 50, 200));
+
+  if (relationId) query = query.eq("relation_id", relationId);
+  if (discordId) query = query.eq("discord_id", discordId);
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(`Erreur lors de la lecture des votes: ${error.message}`);
+  }
+
+  return data ?? [];
 }
 
 export async function getPendingKnowledgeForTerm(term) {
-    console.log(`[DB] Recherche en cours pour le mot-clé: ${term}`);
+  console.log(`[DB] Recherche en cours pour le mot-clé: ${term}`);
 
-    const { data, error } = await supabase
-        .from('relations')
-        .select(`
-            *,
-            users ( trust_score )
-        `)
-        .eq('statut', 'pending')
-        .or(`terme_source.ilike.%${term}%,terme_cible.ilike.%${term}%`)
-        // Correction : on trie sur trust_score qui est dans la table users
-        .order('trust_score', { foreignTable: 'users', ascending: true })
-        .limit(1);
+  const { data, error } = await supabase
+    .from("relations")
+    .select(RELATION_SELECT)
+    .eq("statut", "pending")
+    .or(buildTermSearchFilter(term))
+    .order("trust_score", { foreignTable: "users", ascending: true })
+    .limit(1);
 
-    if (error) {
-        console.error("[DB ERR] Erreur recherche pending:", error.message);
-        return null;
-    }
-
-    if (data && data.length > 0) {
-        console.log(`[DB] Info trouvée ! Sujet: ${data[0].terme_source}`);
-        return data[0];
-    }
-
+  if (error) {
+    console.error("[DB ERR] Erreur recherche pending:", error.message);
     return null;
+  }
+
+  if (data && data.length > 0) {
+    console.log(`[DB] Info trouvée ! Sujet: ${data[0].terme_source}`);
+    return data[0];
+  }
+
+  return null;
 }
+
 export async function voteRelation(relationId, voterId, weight) {
-    try {        
-        const { data: rel, error: relErr } = await supabase
-            .from('relations')
-            .select('id')
-            .eq('id', relationId)
-            .single();
-
-        if (relErr || !rel) return { success: false, error: "Relation introuvable." };
-
-        // Sécurité : Pas d'auto-vote à de commenter quand on fait la démo 
-        /*    if (rel.user_id === voterId) {
-               return { success: false, error: "Tu ne peux pas valider ta propre information !" };
-           } */
-        
-        const { error: voteErr } = await supabase
-            .from('validate')
-            .insert([
-                {
-                    relation_id: relationId,
-                    discord_id: voterId,
-                    vote: weight
-                }
-            ]);
-
-        // Si voteErr existe, c'est probablement que l'utilisateur a déjà voté (contrainte Unique)
-        if (voteErr) {
-            return { success: false, error: "Tu as déjà voté pour cette information." };
-        }
-
-        return { success: true };
-    } catch (error) {
-        console.error("Erreur voteRelation:", error);
-        return { success: false, error: "Erreur technique lors du vote." };
+  try {
+    const relation = await getRelationById(relationId);
+    if (!relation) {
+      return { success: false, error: "Relation introuvable." };
     }
+
+    const { error: voteErr } = await supabase
+      .from("validate")
+      .insert([
+        {
+          relation_id: relationId,
+          discord_id: voterId,
+          vote: weight,
+        },
+      ]);
+
+    if (voteErr) {
+      return { success: false, error: "Tu as déjà voté pour cette information." };
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Erreur voteRelation:", error);
+    return { success: false, error: "Erreur technique lors du vote." };
+  }
 }
 
 /**
  * Ajoute une nouvelle connaissance proposée par un utilisateur dans la table relations.
  */
-export async function addProposition(discordId, source, relation, cible, estVrai, contexte = null) {
-    const { data, error } = await supabase
-        .from('relations')
-        .insert([{
-            discord_id: discordId,
-            terme_source: source,
-            type_relation: relation,
-            terme_cible: cible,
-            est_vrai: estVrai,
-            contexte_annotation: contexte,
-            statut: 'pending'
-        }])
-        .select();
+export async function addProposition(
+  discordId,
+  source,
+  relation,
+  cible,
+  estVrai,
+  contexte = null,
+) {
+  const { data, error } = await supabase
+    .from("relations")
+    .insert([
+      {
+        discord_id: discordId,
+        terme_source: source,
+        type_relation: relation,
+        terme_cible: cible,
+        est_vrai: estVrai,
+        contexte_annotation: contexte,
+        statut: "pending",
+      },
+    ])
+    .select(RELATION_SELECT);
 
-    if (error) {
-        console.error("Erreur lors de l'ajout de la proposition :", error.message);
-        return null;
-    }
-    return data;
+  if (error) {
+    console.error("Erreur lors de l'ajout de la proposition :", error.message);
+    return null;
+  }
 
+  return data;
+}
 
+export async function getSupabaseHealth() {
+  const { error } = await supabase
+    .from("users")
+    .select("discord_id", { count: "exact", head: true });
+
+  if (error && !isNotFoundError(error)) {
+    throw new Error(`Connexion Supabase indisponible: ${error.message}`);
+  }
+
+  return { ok: true };
 }

@@ -10,6 +10,7 @@ Bot Discord qui collecte, valide et organise des connaissances en interagissant 
 - **Gestion de la polysémie** : Analyse contextuelle pour gérer les termes à plusieurs sens
 - **Inférence logique** : Déduction de nouvelles relations via transitivité et typage
 - **N-grams pour détection** : Recherche par 3-grams, 2-grams et tokens pour une meilleure détection des connaissances en attente
+- **API Fastify documentée** : Accès HTTP aux données Supabase avec schéma OpenAPI 3.1 et documentation Redoc
 
 ## État Actuel (19 février 2026)
 
@@ -25,6 +26,7 @@ Bot Discord qui collecte, valide et organise des connaissances en interagissant 
 - Suppression automatique des stopwords pour éviter les faux matchs
 - Formulation naturelle des relations sans type technique
 - Base de données Supabase avec `users`, `relations`, `validate`
+- Serveur Fastify avec endpoints documentés, `/openapi.json`, `/docs` et `/health`
 
 ### Workflow de validation
 
@@ -60,6 +62,51 @@ npm run dev
 # Ou en production
 npm start
 ```
+
+## Variables d'environnement
+
+Le projet attend les variables suivantes dans `.env` :
+
+- `DISCORD_TOKEN`
+- `OPENROUTER_API_KEY`
+- `SUPABASE_URL`
+- `SUPABASE_KEY`
+- `HOST` (optionnel, défaut `0.0.0.0`)
+- `PORT` (optionnel, défaut `8080`)
+
+Un fichier d'exemple est fourni dans [.env.example](./.env.example).
+
+## API HTTP et OpenAPI
+
+Le mini serveur HTTP a été remplacé par une vraie API Fastify. Une fois le projet démarré :
+
+- `GET /health` : état du bot Discord et de la connexion Supabase
+- `GET /openapi.json` : schéma OpenAPI 3.1
+- `GET /docs` : documentation Redoc
+
+### Endpoints Supabase exposés
+
+- `GET /api/users/:discordId`
+- `POST /api/users/:discordId/ensure`
+- `GET /api/relations`
+- `GET /api/relations/:relationId`
+- `GET /api/relations/pending/search?term=...`
+- `POST /api/relations`
+- `GET /api/votes`
+- `POST /api/relations/:relationId/votes`
+
+### Exemple d'appel
+
+```bash
+curl "http://localhost:8080/api/relations?status=pending&limit=10"
+```
+
+### Pourquoi passer par Fastify au lieu d'exposer Supabase directement
+
+- la clé Supabase reste côté serveur
+- on contrôle exactement les tables et colonnes exposées
+- on peut documenter l'API avec OpenAPI 3.1
+- le bot Discord et l'API réutilisent les mêmes fonctions métier
 
 ## Architecture Base de Données
 
