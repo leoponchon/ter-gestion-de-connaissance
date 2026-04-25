@@ -1,4 +1,7 @@
-import { voteRelation } from "../utils/supabase.js";
+import { voteRelation, updateTrustScore, ensureUserExists } from "../utils/supabase.js";
+import { processUserRequest } from "../utils/brain.js";
+import conversations from "../utils/conversations.js";
+import { TRAPS } from "../utils/traps.js";
 import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs";
@@ -46,6 +49,60 @@ export default function interactionCreateHandler(discordClient) {
           .setFooter({ text: "Bot de Gestion de Connaissances (TER)" });
 
         return interaction.reply({ embeds: [helpEmbed], flags: 64 });
+      }
+
+      if (interaction.commandName === "trust") {
+        const targetUser = interaction.options.getUser("user");
+        const dbUser = await ensureUserExists(targetUser.id);
+
+        return interaction.reply({
+          content: `Le score de fiabilité de ${targetUser.username} est de **${dbUser.trust_score.toFixed(2)}**`,
+          flags: 64
+        });
+      }
+
+      if (interaction.commandName === "chat") {
+        const userMessage = interaction.options.getString("chat");
+        const userId = interaction.user.id;
+        
+        await interaction.deferReply();
+        await ensureUserExists(userId);
+        
+        try {
+          const result = await processUserRequest(userId, userMessage);
+          
+          const replyMessage = await interaction.editReply({
+             content: `💬 Discussion démarrée sur : **"${userMessage}"**` 
+          });
+          
+          const thread = await replyMessage.startThread({
+             name: `Discussion avec ${interaction.user.username}`,
+             autoArchiveDuration: 60,
+          });
+          
+          const payload = { content: result.content.length > 2000 ? result.content.slice(0, 1950) + "..." : result.content };
+          await thread.send(payload);
+          
+          if (result.additionalContent && result.additionalComponent) {
+            await thread.send({
+              content: result.additionalContent,
+              components: [result.additionalComponent]
+            });
+          }
+          
+          conversations.addMessage(userId, "user", userMessage);
+          conversations.addMessage(userId, "assistant", result.content);
+
+          if (result.detectedTopic) {
+            conversations.setTopic(userId, result.detectedTopic);
+          }
+          
+        } catch (error) {
+          console.error("Erreur /chat:", error);
+          await interaction.editReply({ content: "Erreur lors de la génération de la réponse: " + error.message });
+        }
+
+        return;
       }
 
       return;
