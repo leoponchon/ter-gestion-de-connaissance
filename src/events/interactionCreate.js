@@ -37,13 +37,13 @@ export default function interactionCreateHandler(discordClient) {
           .setTitle("🧠 Aide & Informations sur le Bot")
           .setDescription("Ce bot est un **Chatbot de Gestion de Connaissances** connecté à l'API **JeuDeMots**. Son but est de collecter, valider et organiser des connaissances de manière collaborative.")
           .addFields(
-            { 
-              name: "✨ Fonctionnalités principales", 
-              value: "• **Discussion Naturelle :** Parlez-lui normalement, il vous répondra.\n• **Collecte :** Apprenez-lui de nouvelles choses, il les enregistrera pour vérification.\n• **Validation :** Lorsqu'il aborde un sujet connu, il peut vous demander de valider les informations partagées par d'autres utilisateurs via des boutons interactifs.\n• **Déduction logique :** Il est capable de déduire de nouvelles relations (transitivité, typage, etc.)." 
+            {
+              name: "✨ Fonctionnalités principales",
+              value: "• **Discussion Naturelle :** Parlez-lui normalement, il vous répondra.\n• **Collecte :** Apprenez-lui de nouvelles choses, il les enregistrera pour vérification.\n• **Validation :** Lorsqu'il aborde un sujet connu, il peut vous demander de valider les informations partagées par d'autres utilisateurs via des boutons interactifs.\n• **Déduction logique :** Il est capable de déduire de nouvelles relations (transitivité, typage, etc.)."
             },
-            { 
-              name: "🛠️ Commandes disponibles", 
-              value: "`/help` : Affiche ce message d'aide.\n`/maj` : Affiche la date de la dernière mise à jour du code et l'heure de son dernier redémarrage." 
+            {
+              name: "🛠️ Commandes disponibles",
+              value: "`/help` : Affiche ce message d'aide.\n`/maj` : Affiche la date de la dernière mise à jour du code et l'heure de son dernier redémarrage."
             }
           )
           .setFooter({ text: "Bot de Gestion de Connaissances (TER)" });
@@ -109,6 +109,41 @@ export default function interactionCreateHandler(discordClient) {
     }
 
     if (!interaction.isButton()) return;
+
+    if (interaction.customId === "votetrap_skip_trap") {
+      await interaction.reply({ content: "Vous avez ignoré la question de contrôle.", flags: 64 });
+      await interaction.message.edit({ components: [] });
+      return;
+    }
+
+    if (interaction.customId.startsWith("votetrap_")) {
+      const parts = interaction.customId.split("_"); // ex: ["votetrap", "vrai", "trap1"]
+      const vote = parts[1];
+      const trapId = parts[2];
+      const voterId = interaction.user.id;
+
+      const trap = TRAPS.find(t => t.id === trapId);
+      if (!trap) {
+        return interaction.reply({ content: "Erreur : Piège introuvable.", flags: 64 });
+      }
+
+      let delta = 0;
+      if (vote === trap.reponse_attendue) {
+        delta = 0.05; // Bonne réponse
+      } else {
+        delta = -0.15; // Mauvaise réponse, pénalité plus forte
+      }
+
+      await updateTrustScore(voterId, delta);
+
+      const messageContent = vote === trap.reponse_attendue
+        ? "✅ Bonne réponse ! C'était une question de contrôle. Ton score de fiabilité a augmenté."
+        : "❌ Raté ! C'était une question de contrôle. Ton score de fiabilité a diminué pour éviter le spam.";
+
+      await interaction.reply({ content: messageContent, flags: 64 });
+      await interaction.message.edit({ components: [] });
+      return;
+    }
 
     const parts = interaction.customId.split("_");
     if (parts[0] !== "vote") return;
