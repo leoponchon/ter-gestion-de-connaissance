@@ -2,8 +2,10 @@ import { voteRelation } from "../utils/supabase.js";
 import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs";
+import { EmbedBuilder } from "discord.js";
 
 const execAsync = promisify(exec);
+const startupTime = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
 
 export default function interactionCreateHandler(discordClient) {
   discordClient.on("interactionCreate", async (interaction) => {
@@ -21,10 +23,31 @@ export default function interactionCreateHandler(discordClient) {
         }
 
         return interaction.reply({
-          content: `🤖 Dernière mise à jour du code : **${lastUpdate}**` //, 
+          content: `🤖 Dernière mise à jour du code : **${lastUpdate}**\n🔄 Dernier redémarrage du bot : **${startupTime}**` //, 
           // flags: 64 si on veut le mettre éphémère le mesage
         });
       }
+
+      if (interaction.commandName === "help") {
+        const helpEmbed = new EmbedBuilder()
+          .setColor("#2b2d31")
+          .setTitle("🧠 Aide & Informations sur le Bot")
+          .setDescription("Ce bot est un **Chatbot de Gestion de Connaissances** connecté à l'API **JeuDeMots**. Son but est de collecter, valider et organiser des connaissances de manière collaborative.")
+          .addFields(
+            { 
+              name: "✨ Fonctionnalités principales", 
+              value: "• **Discussion Naturelle :** Parlez-lui normalement, il vous répondra.\n• **Collecte :** Apprenez-lui de nouvelles choses, il les enregistrera pour vérification.\n• **Validation :** Lorsqu'il aborde un sujet connu, il peut vous demander de valider les informations partagées par d'autres utilisateurs via des boutons interactifs.\n• **Déduction logique :** Il est capable de déduire de nouvelles relations (transitivité, typage, etc.)." 
+            },
+            { 
+              name: "🛠️ Commandes disponibles", 
+              value: "`/help` : Affiche ce message d'aide.\n`/maj` : Affiche la date de la dernière mise à jour du code et l'heure de son dernier redémarrage." 
+            }
+          )
+          .setFooter({ text: "Bot de Gestion de Connaissances (TER)" });
+
+        return interaction.reply({ embeds: [helpEmbed], flags: 64 });
+      }
+
       return;
     }
 
