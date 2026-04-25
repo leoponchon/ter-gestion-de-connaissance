@@ -1,7 +1,33 @@
 import { voteRelation } from "../utils/supabase.js";
+import { exec } from "child_process";
+import { promisify } from "util";
+import fs from "fs";
+
+const execAsync = promisify(exec);
 
 export default function interactionCreateHandler(discordClient) {
   discordClient.on("interactionCreate", async (interaction) => {
+    if (interaction.isChatInputCommand()) {
+      if (interaction.commandName === "maj") {
+        let lastUpdate = "Inconnue";
+        try {
+          const { stdout } = await execAsync("git log -1 --format='%cd' --date=format:'%d/%m/%Y à %H:%M:%S'");
+          lastUpdate = stdout.trim();
+        } catch (e) {
+          try {
+            const stats = await fs.promises.stat("package.json");
+            lastUpdate = stats.mtime.toLocaleString("fr-FR");
+          } catch (err) { }
+        }
+
+        return interaction.reply({
+          content: `🤖 Dernière mise à jour du code : **${lastUpdate}**` //, 
+          // flags: 64 si on veut le mettre éphémère le mesage
+        });
+      }
+      return;
+    }
+
     if (!interaction.isButton()) return;
 
     const parts = interaction.customId.split("_");
