@@ -71,6 +71,26 @@ export async function ensureUserExists(discordId) {
   return newUser;
 }
 
+/**
+ * Met à jour le score de confiance d'un utilisateur.
+ */
+export async function updateTrustScore(discordId, delta) {
+  const user = await getUserByDiscordId(discordId);
+  if (!user) return;
+  
+  // Limite le score entre 0 et 1
+  const newScore = Math.max(0, Math.min(1, user.trust_score + delta));
+  
+  const { error } = await supabase
+    .from("users")
+    .update({ trust_score: newScore })
+    .eq("discord_id", discordId);
+    
+  if (error) {
+    console.error("Erreur lors de la mise à jour du trust_score :", error.message);
+  }
+}
+
 export async function listRelations(filters = {}) {
   const {
     status,
