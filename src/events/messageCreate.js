@@ -12,6 +12,62 @@ const messageQueue = [];
 
 const SYSTEM_PROMPT = fs.readFileSync("src/system-prompt.txt", "utf-8");
 
+function normalizeText(text) {
+  return text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .trim();
+}
+
+function isWhyQuestion(text) {
+  const t = normalizeText(text);
+  return (
+    t.startsWith("pourquoi ") ||
+    t.includes(" pourquoi ") ||
+    t.startsWith("why ")
+  );
+}
+
+function detectTopic(text) {
+  const cleaned = text
+    .replace(/[?!.,;:()"']/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  const patterns = [
+    /pourquoi\s+(?:un|une|le|la|les|l')?\s*([a-zA-ZÀ-ÿ0-9\- ]+?)\s+(?:est|a|fait|peut|se trouve)/i,
+    /parle[- ]?moi\s+(?:de|du|des|de la|de l')\s+([a-zA-ZÀ-ÿ0-9\- ]+)/i,
+    /infos?\s+sur\s+([a-zA-ZÀ-ÿ0-9\- ]+)/i,
+    /(?:un|une|le|la|les|l')\s*([a-zA-ZÀ-ÿ0-9\- ]+?)\s+(?:est|a|fait|peut|contient|se trouve)/i
+  ];
+
+  for (const pattern of patterns) {
+    const match = cleaned.match(pattern);
+    if (match?.[1]) {
+      return match[1].trim();
+    }
+  }
+
+  return null;
+}
+
+function detectWhyClaim(text) {
+  const cleaned = text.replace(/[?]/g, "").trim();
+
+  const match = cleaned.match(
+    /pourquoi\s+(?:un|une|le|la|les|l')?\s*([a-zA-ZÀ-ÿ0-9\- ]+?)\s+est\s+([a-zA-ZÀ-ÿ0-9\- ]+)/i
+  );
+
+  if (!match) return null;
+
+  return {
+    subject: match[1].trim(),
+    property: match[2].trim()
+  };
+}
+
+
 function chooseArticleForTarget(target) {
   const trimmed = target.trim();
   const lower = trimmed.toLowerCase();
@@ -78,6 +134,17 @@ async function processMessage(message) {
   const dbUser = await ensureUserExists(userId);
   const history = conversations.getHistory(userId);
 
+  const previousTopic = conversations.getTopic(userId);
+  const detectedTopic = detectTopic(userMessage);
+  const whyInfo = detectWhyClaim(userMessage);
+  const whyQuestion = isWhyQuestion(userMessage);
+
+  // pour verifier la memoire
+  console.log("[TOPIC] previousTopic:", previousTopic);
+  console.log("[TOPIC] detectedTopic:", detectedTopic);
+  console.log("[TOPIC] whyQuestion:", whyQuestion);
+  console.log("[TOPIC] whyInfo:", whyInfo);
+
   try {
     //RECHERCHE DE CONNAISSANCES EN ATTENTE (n-grams)
     const normalizedMessage = userMessage.toLowerCase();
@@ -128,10 +195,33 @@ async function processMessage(message) {
     if (!pendingInfo) console.log("[DEBUG] Aucune info en attente trouvée pour ces mots-clés.");
 
     let messages = [
-      { role: "system", content: SYSTEM_PROMPT },
-      ...history,
-      { role: "user", content: userMessage }
+      { role: "system", content: SYSTEM_PROMPT }
     ];
+
+    if (previousTopic && !detectedTopic) {
+      messages.push({
+        role: "system",
+        content: `CONTEXTE DE SUJET : l'utilisateur parlait récemment de "${previousTopic}". Garde le même thème sauf si l'utilisateur change clairement de sujet.`
+      });
+    }
+
+    if (whyQuestion) {
+      messages.push({
+        role: "system",
+        content: `MODE EXPLICATION : l'utilisateur pose une question de type "pourquoi". Tu dois privilégier une explication causale ou déductive en t'appuyant sur JeuxDeMots avec une chaîne de raisonnement explicite. Utilise en priorité r_isa, r_carac, r_lieu, r_agent, r_patient, r_has_part si pertinent.`
+      });
+
+      if (whyInfo) {
+        messages.push({
+          role: "system",
+          content: `QUESTION ANALYSÉE : sujet probable = "${whyInfo.subject}", propriété probable = "${whyInfo.property}". Vérifie d'abord si cette propriété existe directement, sinon cherche une chaîne d'inférence.`
+        });
+      }
+    }
+
+    messages.push(...history);
+    messages.push({ role: "user", content: userMessage });
+
 
     if (pendingInfo) {
       messages.push({
@@ -228,6 +318,10 @@ async function processMessage(message) {
 
       conversations.addMessage(userId, "user", userMessage);
       conversations.addMessage(userId, "assistant", finalResponse);
+
+      if (detectedTopic) {
+        conversations.setTopic(userId, detectedTopic);
+      }
     }
 
   } catch (error) {
