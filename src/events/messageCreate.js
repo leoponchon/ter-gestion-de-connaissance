@@ -74,7 +74,7 @@ async function processMessage(message) {
 
   console.log("\n" + "=".repeat(50));
   console.log(`[MSG] From ${message.author.username}: "${userMessage}"`);
-  
+
   const dbUser = await ensureUserExists(userId);
   const history = conversations.getHistory(userId);
 
@@ -132,7 +132,7 @@ async function processMessage(message) {
       ...history,
       { role: "user", content: userMessage }
     ];
-    
+
     if (pendingInfo) {
       messages.push({
         role: "system",
@@ -145,7 +145,7 @@ async function processMessage(message) {
     let finalResponse = "";
     let maxIterations = 10;
     let llmFailed = false;
-    
+
     try {
       while (maxIterations-- > 0) {
         const response = await continueToolCall(messages, TOOLS, config.temperature);
@@ -155,7 +155,7 @@ async function processMessage(message) {
 
         messages.push({ role: "assistant", content: response.content || "", tool_calls: response.tool_calls });
 
-         for (const toolCall of response.tool_calls) {
+        for (const toolCall of response.tool_calls) {
           const toolName = toolCall.function.name;
           const toolArgs = JSON.parse(toolCall.function.arguments);
           let toolResult;
@@ -251,9 +251,13 @@ async function processQueue() {
   isProcessing = false;
 }
 
+// HANDLER
+const channels = [1469129042258169949n, 1472937819537412290n];
+
 export default function messageCreateHandler(discordClient) {
   discordClient.on("messageCreate", async (message) => {
     if (message.author.bot) return;
+    if (!channels.includes(message.channel.id)) return;
 
     const userMessage = message.content.trim();
     if (!userMessage) return;
@@ -261,7 +265,7 @@ export default function messageCreateHandler(discordClient) {
     const messageKey = `${message.channelId}-${message.id}`;
     if (processingMessages.has(messageKey)) return;
     processingMessages.add(messageKey);
-    
+
     messageQueue.push({ message, messageKey });
 
     console.log(`[QUEUE] Added to queue (position ${messageQueue.length})`);
