@@ -70,7 +70,7 @@ export default function messageCreateHandler(discordClient) {
     if (!isAllowedChannel && !isBotThread) return;
 
     const userMessage = message.content.trim();
-    if (!userMessage) return;
+    if (!userMessage || userMessage.startsWith("#")) return;
 
     const messageKey = `${message.channelId}-${message.id}`;
     if (processingMessages.has(messageKey)) return;
