@@ -26,8 +26,7 @@ export default function interactionCreateHandler(discordClient) {
         }
 
         return interaction.reply({
-          content: `🤖 Dernière mise à jour du code : **${lastUpdate}**\n🔄 Dernier redémarrage du bot : **${startupTime}**` //, 
-          // flags: 64 si on veut le mettre éphémère le mesage
+          content: `🤖 Dernière mise à jour du code : **${lastUpdate}**\n🔄 Dernier redémarrage du bot : **${startupTime}**`
         });
       }
 
@@ -48,7 +47,7 @@ export default function interactionCreateHandler(discordClient) {
           )
           .setFooter({ text: "Bot de Gestion de Connaissances (TER)" });
 
-        return interaction.reply({ embeds: [helpEmbed], flags: 64 });
+        return interaction.reply({ embeds: [helpEmbed] });
       }
 
       if (interaction.commandName === "trust") {
@@ -62,8 +61,8 @@ export default function interactionCreateHandler(discordClient) {
 
       if (interaction.commandName === "chat") {
         const userMessage = interaction.options.getString("question");
-        if (!userMessage) return interaction.reply({ content: "Vous n'avez pas posé de question.", flags: 64 });
-        
+        if (!userMessage) return interaction.reply({ content: "Vous n'avez pas posé de question." });
+
         const userId = interaction.user.id;
 
         await interaction.deferReply();
@@ -112,7 +111,7 @@ export default function interactionCreateHandler(discordClient) {
     if (!interaction.isButton()) return;
 
     if (interaction.customId === "votetrap_skip_trap") {
-      await interaction.reply({ content: "Vous avez ignoré la question de contrôle.", flags: 64 });
+      await interaction.reply({ content: "Vous avez ignoré la question de contrôle." });
       await interaction.message.edit({ components: [] });
       return;
     }
@@ -125,7 +124,7 @@ export default function interactionCreateHandler(discordClient) {
 
       const trap = TRAPS.find(t => t.id === trapId);
       if (!trap) {
-        return interaction.reply({ content: "Erreur : Piège introuvable.", flags: 64 });
+        return interaction.reply({ content: "Erreur : Piège introuvable." });
       }
 
       let delta = 0;
@@ -141,7 +140,7 @@ export default function interactionCreateHandler(discordClient) {
         ? "✅ Bonne réponse ! C'était une question de contrôle. Ton score de fiabilité a augmenté."
         : "❌ Raté ! C'était une question de contrôle. Ton score de fiabilité a diminué pour éviter le spam.";
 
-      await interaction.reply({ content: messageContent, flags: 64 });
+      await interaction.reply({ content: messageContent });
       await interaction.message.edit({ components: [] });
       return;
     }
