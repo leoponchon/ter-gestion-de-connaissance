@@ -10,7 +10,7 @@ async function processMessage(message) {
   const userId = message.author.id;
   const userName = message.author.username;
   const userMessage = message.content.trim();
-  
+
   console.log("\n" + "=".repeat(50));
   console.log(`[MSG] From ${userName}: "${userMessage}"`);
 
@@ -18,10 +18,10 @@ async function processMessage(message) {
 
   try {
     const result = await processUserRequest(userId, userName, userMessage);
-    
+
     const payload = { content: result.content.length > 2000 ? result.content.slice(0, 1950) + "..." : result.content };
     await message.reply(payload);
-    
+
     if (result.additionalContent && result.additionalComponent) {
       await message.channel.send({
         content: result.additionalContent,
@@ -63,11 +63,11 @@ export default function messageCreateHandler(discordClient) {
     // En JS, les ID venant de Discord.js sont des strings, mais `channels` contient des BigInts. On compare prudemment.
     const parentIdBigInt = isThread && message.channel.parentId ? BigInt(message.channel.parentId) : null;
     const channelIdBigInt = BigInt(message.channel.id);
-    
+
     const isAllowedChannel = channels.includes(channelIdBigInt) || (isThread && channels.includes(parentIdBigInt));
     const isBotThread = isThread && message.channel.ownerId === discordClient.user.id;
 
-    if (!isAllowedChannel && !isBotThread) return;
+    if (!isAllowedChannel || !isBotThread) return;
 
     const userMessage = message.content.trim();
     if (!userMessage || userMessage.startsWith("#")) return;
