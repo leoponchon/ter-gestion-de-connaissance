@@ -36,7 +36,7 @@ export default function readyHandler(client) {
       ];
 
       await client.application.commands.set(commands);
-      console.log("Commandes slash (/maj, /help, /trust, /chat) enregistrées !");
+      console.log("Commandes slash (/maj, /help, /trust, /chat, /export) enregistrées !");
     } catch (error) {
       console.error("Erreur lors de l'enregistrement des commandes:", error);
     }

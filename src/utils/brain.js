@@ -4,6 +4,7 @@ import { continueToolCall } from "./openrouter.js";
 import { TOOLS, TOOL_FUNCTIONS } from "./jdm.js";
 import { addProposition, getPendingKnowledgeForTerm } from "./supabase.js";
 import { getRandomTrap } from "./traps.js";
+import { logSession } from "./logger.js";
 import config from "../config.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 
@@ -102,7 +103,7 @@ function formatValidationStatement(source, relation, target) {
  * Traite la demande de l'utilisateur, interroge le LLM, 
  * gère la base de données et prépare les messages Discord.
  */
-export async function processUserRequest(userId, userMessage) {
+export async function processUserRequest(userId, userName, userMessage) {
   const history = conversations.getHistory(userId);
   const previousTopic = conversations.getTopic(userId);
   const detectedTopic = detectTopic(userMessage);
@@ -246,6 +247,9 @@ export async function processUserRequest(userId, userMessage) {
     const safeStatement = statement.replace(/\br_[a-z0-9_>]+\b/gi, "").replace(/\s{2,}/g, " ").trim();
     additionalContent = `D'ailleurs, à ce sujet, quelqu'un a dit que **${safeStatement}**. Tu en penses quoi, c'est correct ?`;
   }
+
+  // Enregistrement dans les logs de la session
+  logSession(userId, userName, userMessage, finalResponse, detectedTopic);
 
   return {
     content: finalResponse,

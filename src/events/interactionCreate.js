@@ -5,7 +5,8 @@ import { TRAPS } from "../utils/traps.js";
 import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs";
-import { EmbedBuilder } from "discord.js";
+import path from "path";
+import { EmbedBuilder, AttachmentBuilder } from "discord.js";
 
 const execAsync = promisify(exec);
 const startupTime = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
@@ -61,15 +62,16 @@ export default function interactionCreateHandler(discordClient) {
 
       if (interaction.commandName === "chat") {
         const userMessage = interaction.options.getString("question");
-        if (!userMessage) return interaction.reply({ content: "Vous n'avez pas posé de question." });
-
+        if (!userMessage) return interaction.reply({ content: "Vous n'avez pas posé de question.", flags: 64 });
+        
         const userId = interaction.user.id;
+        const userName = interaction.user.username;
 
         await interaction.deferReply();
         await ensureUserExists(userId);
 
         try {
-          const result = await processUserRequest(userId, userMessage);
+          const result = await processUserRequest(userId, userName, userMessage);
 
           const replyMessage = await interaction.editReply({
             content: `💬 Discussion démarrée sur : **"${userMessage}"**`
@@ -142,7 +144,7 @@ export default function interactionCreateHandler(discordClient) {
           console.error("Erreur lors de l'export:", error);
           await interaction.editReply({ content: "Erreur lors de la génération de l'export: " + error.message });
         }
-
+        
         return;
       }
 

@@ -8,15 +8,16 @@ const messageQueue = [];
 
 async function processMessage(message) {
   const userId = message.author.id;
+  const userName = message.author.username;
   const userMessage = message.content.trim();
   
   console.log("\n" + "=".repeat(50));
-  console.log(`[MSG] From ${message.author.username}: "${userMessage}"`);
+  console.log(`[MSG] From ${userName}: "${userMessage}"`);
 
   await ensureUserExists(userId);
 
   try {
-    const result = await processUserRequest(userId, userMessage);
+    const result = await processUserRequest(userId, userName, userMessage);
     
     const payload = { content: result.content.length > 2000 ? result.content.slice(0, 1950) + "..." : result.content };
     await message.reply(payload);
