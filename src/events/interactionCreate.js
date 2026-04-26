@@ -1,4 +1,4 @@
-import { voteRelation, updateTrustScore, ensureUserExists } from "../utils/supabase.js";
+import { voteRelation, updateTrustScore, ensureUserExists, listRelations } from "../utils/supabase.js";
 import { processUserRequest } from "../utils/brain.js";
 import conversations from "../utils/conversations.js";
 import { TRAPS } from "../utils/traps.js";
@@ -100,6 +100,47 @@ export default function interactionCreateHandler(discordClient) {
         } catch (error) {
           console.error("Erreur /chat:", error);
           await interaction.editReply({ content: "Erreur lors de la génération de la réponse: " + error.message });
+        }
+
+        return;
+      }
+
+      if (interaction.commandName === "export") {
+        await interaction.deferReply();
+        
+        try {
+          const relations = await listRelations({ limit: 5000 }); // On récupère une grande limite
+          
+          let markdownContent = "# Export des Relations Locales (Supabase)\n\n";
+          markdownContent += "Généré le : " + new Date().toLocaleString("fr-FR") + "\n\n";
+          markdownContent += "| ID | Source | Type Relation | Cible | Est Vrai | Statut |\n";
+          markdownContent += "|---|---|---|---|---|---|\n";
+          
+          relations.forEach(rel => {
+            const vraiFaux = rel.est_vrai ? "Vrai" : "Faux";
+            markdownContent += `| ${rel.id} | ${rel.terme_source} | ${rel.type_relation} | ${rel.terme_cible} | ${vraiFaux} | ${rel.statut} |\n`;
+          });
+          
+          // Sauvegarde temporaire du fichier
+          const exportPath = path.join(process.cwd(), 'logs', 'relations_export.md');
+          
+          // S'assurer que le dossier logs existe
+          if (!fs.existsSync(path.dirname(exportPath))) {
+            fs.mkdirSync(path.dirname(exportPath), { recursive: true });
+          }
+          
+          fs.writeFileSync(exportPath, markdownContent, "utf8");
+          
+          const attachment = new AttachmentBuilder(exportPath, { name: "relations_locales.md" });
+          
+          await interaction.editReply({
+            content: `✅ Voici l'export de toutes les relations stockées localement (${relations.length} relations).`,
+            files: [attachment]
+          });
+          
+        } catch (error) {
+          console.error("Erreur lors de l'export:", error);
+          await interaction.editReply({ content: "Erreur lors de la génération de l'export: " + error.message });
         }
 
         return;

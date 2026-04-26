@@ -4,14 +4,14 @@ export const TRAPS = [
     terme_source: "chauve-souris",
     type_relation: "r_isa",
     terme_cible: "oiseau",
-    reponse_attendue: "faux" // C'est un mammifère
+    reponse_attendue: "faux"
   },
   {
     id: "trap2",
     terme_source: "tomate",
     type_relation: "r_isa",
     terme_cible: "legume",
-    reponse_attendue: "faux" // Botaniquement un fruit, test classique
+    reponse_attendue: "faux"
   },
   {
     id: "trap3",
@@ -25,7 +25,7 @@ export const TRAPS = [
     terme_source: "avocat",
     type_relation: "r_carac",
     terme_cible: "poils",
-    reponse_attendue: "faux" // Polysémie/Absurdité
+    reponse_attendue: "faux"
   },
   {
     id: "trap5",
@@ -39,7 +39,7 @@ export const TRAPS = [
     terme_source: "sous-marin",
     type_relation: "r_isa",
     terme_cible: "bateau",
-    reponse_attendue: "vrai" // Piège inverse du sandwich
+    reponse_attendue: "vrai"
   }
 ];
 

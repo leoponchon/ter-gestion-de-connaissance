@@ -28,6 +28,10 @@ export default function readyHandler(client) {
               required: true
             }
           ]
+        },
+        {
+          name: "export",
+          description: "Exporte toutes les relations locales de la base de données au format Markdown"
         }
       ];
 
