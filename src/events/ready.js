@@ -1,5 +1,5 @@
 export default function readyHandler(client) {
-  client.once("ready", async () => {
+  client.once("clientReady", async () => {
     console.log(`${client.user.tag} prêt à discuter !`);
     client.user.setActivity("Discute avec les utilisateurs !");
 
@@ -15,23 +15,15 @@ export default function readyHandler(client) {
         },
         {
           name: "trust",
-          description: "Indique ton score de fiabilité",
-          options: [
-            {
-              name: "user",
-              type: "USER",
-              description: "L'utilisateur dont tu veux connaître le score",
-              required: true
-            }
-          ]
+          description: "Indique ton score de fiabilité"
         },
         {
           name: "chat",
           description: "Engage une conversation avec le bot",
           options: [
             {
-              name: "chat",
-              type: "STRING",
+              name: "question",
+              type: 3, // string en gros
               description: "La question que tu veux poser",
               required: true
             }
@@ -40,7 +32,7 @@ export default function readyHandler(client) {
       ];
 
       await client.application.commands.set(commands);
-      console.log("Commandes slash (/maj, /help, /trust, /question) enregistrées !");
+      console.log("Commandes slash (/maj, /help, /trust, /chat) enregistrées !");
     } catch (error) {
       console.error("Erreur lors de l'enregistrement des commandes:", error);
     }

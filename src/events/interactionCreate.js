@@ -52,51 +52,52 @@ export default function interactionCreateHandler(discordClient) {
       }
 
       if (interaction.commandName === "trust") {
-        const targetUser = interaction.options.getUser("user");
+        const targetUser = interaction.user;
         const dbUser = await ensureUserExists(targetUser.id);
 
         return interaction.reply({
-          content: `Le score de fiabilité de ${targetUser.username} est de **${dbUser.trust_score.toFixed(2)}**`,
-          flags: 64
+          content: `Ton score de fiabilité actuel est de **${(dbUser.trust_score * 100).toFixed(0)}%** (${dbUser.trust_score.toFixed(2)})`
         });
       }
 
       if (interaction.commandName === "chat") {
-        const userMessage = interaction.options.getString("chat");
-        const userId = interaction.user.id;
+        const userMessage = interaction.options.getString("question");
+        if (!userMessage) return interaction.reply({ content: "Vous n'avez pas posé de question.", flags: 64 });
         
+        const userId = interaction.user.id;
+
         await interaction.deferReply();
         await ensureUserExists(userId);
-        
+
         try {
           const result = await processUserRequest(userId, userMessage);
-          
+
           const replyMessage = await interaction.editReply({
-             content: `💬 Discussion démarrée sur : **"${userMessage}"**` 
+            content: `💬 Discussion démarrée sur : **"${userMessage}"**`
           });
-          
+
           const thread = await replyMessage.startThread({
-             name: `Discussion avec ${interaction.user.username}`,
-             autoArchiveDuration: 60,
+            name: `Discussion avec ${interaction.user.username}`,
+            autoArchiveDuration: 60,
           });
-          
+
           const payload = { content: result.content.length > 2000 ? result.content.slice(0, 1950) + "..." : result.content };
           await thread.send(payload);
-          
+
           if (result.additionalContent && result.additionalComponent) {
             await thread.send({
               content: result.additionalContent,
               components: [result.additionalComponent]
             });
           }
-          
+
           conversations.addMessage(userId, "user", userMessage);
           conversations.addMessage(userId, "assistant", result.content);
 
           if (result.detectedTopic) {
             conversations.setTopic(userId, result.detectedTopic);
           }
-          
+
         } catch (error) {
           console.error("Erreur /chat:", error);
           await interaction.editReply({ content: "Erreur lors de la génération de la réponse: " + error.message });
@@ -159,20 +160,17 @@ export default function interactionCreateHandler(discordClient) {
       if (!result.success) {
         if (interaction.replied || interaction.deferred) {
           return await interaction.followUp({
-            content: result.error,
-            flags: 64
+            content: result.error
           });
         }
 
         return await interaction.reply({
-          content: result.error,
-          flags: 64
+          content: result.error
         });
       }
 
       await interaction.reply({
-        content: "Vote enregistré ! Merci pour ton retour.",
-        flags: 64
+        content: "Vote enregistré ! Merci pour ton retour."
       });
 
       await interaction.message.edit({ components: [] });
@@ -182,13 +180,11 @@ export default function interactionCreateHandler(discordClient) {
 
       if (interaction.replied || interaction.deferred) {
         await interaction.followUp({
-          content: "Une erreur est survenue lors du vote.",
-          flags: 64
+          content: "Une erreur est survenue lors du vote."
         });
       } else {
         await interaction.reply({
-          content: "Une erreur est survenue lors du vote.",
-          flags: 64
+          content: "Une erreur est survenue lors du vote."
         });
       }
     }
