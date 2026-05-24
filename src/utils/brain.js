@@ -33,21 +33,49 @@ export function detectTopic(text) {
     .replace(/\s+/g, " ")
     .trim();
 
+  // Explicit patterns first
   const patterns = [
     /pourquoi\s+(?:un|une|le|la|les|l')?\s*([a-zA-ZÀ-ÿ0-9\- ]+?)\s+(?:est|a|fait|peut|se trouve)/i,
     /parle[- ]?moi\s+(?:de|du|des|de la|de l')\s+([a-zA-ZÀ-ÿ0-9\- ]+)/i,
     /infos?\s+sur\s+([a-zA-ZÀ-ÿ0-9\- ]+)/i,
-    /(?:un|une|le|la|les|l')\s*([a-zA-ZÀ-ÿ0-9\- ]+?)\s+(?:est|a|fait|peut|contient|se trouve)/i
+    /(?:connais|parler?|discuter?|sujet|thème)\s+(?:du?|de la?|des?|l')?\s*([a-zA-ZÀ-ÿ0-9\- ]+)/i,
+    /(?:un|une|le|la|les|l')\s*([a-zA-ZÀ-ÿ0-9\- ]+?)\s+(?:est|a|fait|peut|contient|se trouve|mesure|pèse|vole|nage)/i,
   ];
 
   for (const pattern of patterns) {
     const match = cleaned.match(pattern);
     if (match?.[1]) {
-      return match[1].trim();
+      const topic = match[1].trim();
+      if (topic.length > 2) return topic;
     }
   }
 
-  return null;
+  // Fallback: extract the most prominent noun-like token
+  // Skip stopwords and short tokens, take the longest remaining candidate
+  const stopwords = new Set([
+    "le","la","les","un","une","des","du","de","d","a","au","aux",
+    "et","ou","mais","donc","or","ni","car","que","qui","quoi","dont",
+    "comment","pourquoi","parce","salut","bonjour","dis","moi","toi",
+    "lui","elle","nous","vous","ils","elles","ce","cet","cette","ça",
+    "est","sont","était","avait","fait","peut","avoir","être","vrai",
+    "faux","non","oui","pas","plus","très","bien","mal","tout","rien"
+  ]);
+
+  const tokens = cleaned
+    .toLowerCase()
+    .match(/[a-zà-ÿ0-9][a-zà-ÿ0-9\- ]*[a-zà-ÿ0-9]/g) || [];
+
+  const candidates = tokens
+    .map(t => t.trim())
+    .filter(t => t.length >= 4 && !stopwords.has(t));
+
+  if (candidates.length === 0) return null;
+
+  // Prefer multi-word phrases, then longest single token
+  const multiWord = candidates.filter(t => t.includes(" "));
+  if (multiWord.length > 0) return multiWord[0];
+
+  return candidates.sort((a, b) => b.length - a.length)[0];
 }
 
 function detectWhyClaim(text) {
@@ -249,6 +277,8 @@ export async function processUserRequest(userId, userName, userMessage) {
   }
 
   // Enregistrement dans les logs de la session
+  console.log("[TOPIC] detectedTopic:", detectedTopic);
+  console.log("[TOPIC] previousTopic:", previousTopic);
   logSession(userId, userName, userMessage, finalResponse, detectedTopic);
 
   return {
