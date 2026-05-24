@@ -356,6 +356,9 @@ Format strict :
 }
 [/KNOWLEDGE]
 
+- Le champ `estVrai` doit être une chaîne de caractères si la relation est une évaluation : `"true"`, `"false"` ou `"maybe"`.
+- Utilise `"maybe"` uniquement lorsque l'information est plausible mais pas suffisamment certaine pour être marquée comme vraie.
+
 INTERDICTION : Ne dis jamais "Je vais enregistrer ça", écris simplement le bloc à la fin.
 
 # PROTOCOLE DE VÉRIFICATION SOCIALE

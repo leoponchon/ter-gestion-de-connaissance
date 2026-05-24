@@ -207,6 +207,19 @@ export async function voteRelation(relationId, voterId, weight) {
   }
 }
 
+
+// Normalise les différentes façons d'exprimer vrai/faux/maybe en une valeur standardisée.
+function normalizeEstVraiValue(value) {
+  if (value == null) return null;
+  const normalized = String(value).trim().toLowerCase();
+
+  if (normalized === "true" || normalized === "vrai") return "true";
+  if (normalized === "false" || normalized === "faux") return "false";
+  if (normalized === "maybe" || normalized === "peut-etre" || normalized === "peut-être" || normalized === "probablement" || normalized === "possible") return "maybe";
+
+  return null;
+}
+
 /**
  * Ajoute une nouvelle connaissance proposée par un utilisateur dans la table relations.
  */
@@ -218,6 +231,8 @@ export async function addProposition(
   estVrai,
   contexte = null,
 ) {
+  const normalizedEstVrai = normalizeEstVraiValue(estVrai);
+
   const { data, error } = await supabase
     .from("relations")
     .insert([
@@ -226,7 +241,7 @@ export async function addProposition(
         terme_source: source,
         type_relation: relation,
         terme_cible: cible,
-        est_vrai: estVrai,
+        est_vrai: normalizedEstVrai,
         contexte_annotation: contexte,
         statut: "pending",
       },

@@ -42,7 +42,12 @@ const relationSchema = {
     terme_source: { type: "string" },
     type_relation: { type: "string" },
     terme_cible: { type: "string" },
-    est_vrai: { type: ["boolean", "null"] },
+    est_vrai: {
+      anyOf: [
+        { type: "string", enum: ["true", "false", "maybe"] },
+        { type: "null" },
+      ],
+    },
     contexte_annotation: { type: ["string", "null"] },
     statut: { type: ["string", "null"] },
     created_at: { type: ["string", "null"], format: "date-time" },
@@ -277,7 +282,7 @@ export default async function supabaseRoutes(app) {
             source: { type: "string" },
             relation: { type: "string" },
             cible: { type: "string" },
-            estVrai: { type: "boolean" },
+            estVrai: { type: "string", enum: ["true", "false", "maybe"] },
             contexte: { type: ["string", "null"] },
           },
         },
