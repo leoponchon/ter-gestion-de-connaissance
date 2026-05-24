@@ -32,11 +32,24 @@ export default function readyHandler(client) {
         {
           name: "export",
           description: "Exporte toutes les relations locales de la base de données au format Markdown"
+        },
+        {
+          name: "log",
+          description: "Lit le dernier fichier de log ou le nième dernier log",
+          options: [
+            {
+              name: "n",
+              type: 4,
+              description: "Indice du log depuis le plus récent (1 = dernier)",
+              required: false,
+              min_value: 1,
+            },
+          ],
         }
       ];
 
       await client.application.commands.set(commands);
-      console.log("Commandes slash (/maj, /help, /trust, /chat, /export) enregistrées !");
+      console.log("Commandes slash (/maj, /help, /trust, /chat, /export, /log) enregistrées !");
     } catch (error) {
       console.error("Erreur lors de l'enregistrement des commandes:", error);
     }
