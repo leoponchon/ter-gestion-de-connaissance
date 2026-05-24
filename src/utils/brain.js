@@ -27,6 +27,30 @@ function isWhyQuestion(text) {
   );
 }
 
+function isAffirmation(text) {
+  const t = normalizeText(text);
+  if (!t || t.endsWith("?")) return false;
+
+  const affirmativePatterns = [
+    " est ",
+    " a ",
+    " contient ",
+    " fait ",
+    " se trouve ",
+    " appartient ",
+    " existe ",
+    " peut ",
+    " doit ",
+    " n'est pas ",
+    " ne ",
+    " pas un ",
+    " pas une ",
+    " pas de "
+  ];
+
+  return affirmativePatterns.some(pattern => t.includes(pattern));
+}
+
 export function detectTopic(text) {
   const cleaned = text
     .replace(/[?!.,;:()"']/g, " ")
@@ -194,6 +218,13 @@ export async function processUserRequest(userId, userName, userMessage) {
         content: `QUESTION ANALYSÉE : sujet probable = "${whyInfo.subject}", propriété probable = "${whyInfo.property}". Vérifie d'abord si cette propriété existe directement, sinon cherche une chaîne d'inférence.`
       });
     }
+  }
+
+  if (isAffirmation(userMessage)) {
+    messages.push({
+      role: "system",
+      content: "L'utilisateur a fait une affirmation déclarative. Vérifie sa crédibilité comme indiqué dans la section de vérification de crédibilité. Si elle est plausible ou confirmée, traite-la comme une information à extraire et expose le cas échéant un bloc [KNOWLEDGE]."
+    });
   }
 
   messages.push(...history);

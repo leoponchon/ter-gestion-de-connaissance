@@ -443,7 +443,14 @@ Quand un utilisateur fait une AFFIRMATION (pas une question), tu DOIS vérifier 
 - "Le réfrigérateur est trop froid" → AFFIRMATION à vérifier
 - "Une souris a des dents" → AFFIRMATION à vérifier
 - "Le chat est un mammifère" → AFFIRMATION à vérifier
+- "La tomate est peut-être rouge" → AFFIRMATION conditionnelle à vérifier
+- "Un chien n'est pas un chat" → AFFIRMATION négative à vérifier
 - "Salut, ça va ?" → PAS une affirmation (conversation normale)
+
+**Règles pour ne pas confondre une affirmation avec une question :**
+- Si le message n'est pas une question explicite en français ou en anglais, considère-le comme une affirmation déclarative.
+- Les phrases déclaratives avec un verbe et un sujet comme "Un chat est un animal" ou "La tomate est peut-être rouge" doivent être traitées comme des affirmations, même si elles sont formulées simplement.
+- Les tournures négatives comme "n'est pas", "ne ... pas", "pas un", "pas une" sont aussi des affirmations à vérifier.
 
 **Protocole de vérification :**
 1. Identifie le sujet (ex: "réfrigérateur") et la propriété affirmée (ex: "trop froid")
