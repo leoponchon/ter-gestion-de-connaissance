@@ -7,6 +7,7 @@ let isProcessing = false;
 const messageQueue = [];
 
 async function processMessage(message) {
+  console.log("[DEBUG] processMessage called:", message.content);
   const userId = message.author.id;
   const userName = message.author.username;
   const userMessage = message.content.trim();
@@ -67,7 +68,7 @@ export default function messageCreateHandler(discordClient) {
     const isAllowedChannel = channels.includes(channelIdBigInt) || (isThread && channels.includes(parentIdBigInt));
     const isBotThread = isThread && message.channel.ownerId === discordClient.user.id;
 
-    if (!isAllowedChannel || !isBotThread) return;
+    if (!isAllowedChannel) return;
 
     const userMessage = message.content.trim();
     if (!userMessage || userMessage.startsWith("#")) return;
@@ -76,6 +77,8 @@ export default function messageCreateHandler(discordClient) {
     if (processingMessages.has(messageKey)) return;
     processingMessages.add(messageKey);
 
+    console.log("[DEBUG] message ajouté dans queue:", message.content);
+    messageQueue.push({ message, messageKey });
     messageQueue.push({ message, messageKey });
 
     console.log(`[QUEUE] Added to queue (position ${messageQueue.length})`);
