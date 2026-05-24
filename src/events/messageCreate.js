@@ -79,7 +79,6 @@ export default function messageCreateHandler(discordClient) {
 
     console.log("[DEBUG] message ajouté dans queue:", message.content);
     messageQueue.push({ message, messageKey });
-    messageQueue.push({ message, messageKey });
 
     console.log(`[QUEUE] Added to queue (position ${messageQueue.length})`);
 

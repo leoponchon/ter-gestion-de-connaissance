@@ -159,8 +159,6 @@ export async function processUserRequest(userId, userName, userMessage) {
   const history = conversations.getHistory(userId);
   const previousTopic = conversations.getTopic(userId);
   const detectedTopic = detectTopic(userMessage);
-  const whyInfo = detectWhyClaim(userMessage);
-  const whyQuestion = isWhyQuestion(userMessage);
 
   // Recherche de connaissances en attente (n-grams)
   const normalizedMessage = userMessage.toLowerCase();
@@ -207,12 +205,13 @@ export async function processUserRequest(userId, userName, userMessage) {
     });
   }
 
-  if (whyQuestion) {
+  if (isWhyQuestion(userMessage)) {
     messages.push({
       role: "system",
       content: `MODE EXPLICATION : l'utilisateur pose une question de type "pourquoi". Tu dois privilégier une explication causale ou déductive en t'appuyant sur JeuxDeMots avec une chaîne de raisonnement explicite. Utilise en priorité r_isa, r_carac, r_lieu, r_agent, r_patient, r_has_part si pertinent.`
     });
-    if (whyInfo) {
+    
+    if (detectWhyClaim(userMessage)) {
       messages.push({
         role: "system",
         content: `QUESTION ANALYSÉE : sujet probable = "${whyInfo.subject}", propriété probable = "${whyInfo.property}". Vérifie d'abord si cette propriété existe directement, sinon cherche une chaîne d'inférence.`
