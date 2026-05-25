@@ -14,6 +14,8 @@ const RELATION_SELECT = `
     est_vrai,
     contexte_annotation,
     statut,
+    weight,
+    proposer_trust_score,
     created_at,
     users ( trust_score )
 `;
@@ -77,15 +79,15 @@ export async function ensureUserExists(discordId) {
 export async function updateTrustScore(discordId, delta) {
   const user = await getUserByDiscordId(discordId);
   if (!user) return;
-  
+
   // Limite le score entre 0 et 1
   const newScore = Math.max(0, Math.min(1, user.trust_score + delta));
-  
+
   const { error } = await supabase
     .from("users")
     .update({ trust_score: newScore })
     .eq("discord_id", discordId);
-    
+
   if (error) {
     console.error("Erreur lors de la mise à jour du trust_score :", error.message);
   }
@@ -195,6 +197,88 @@ export async function getPendingKnowledgeForTerm(term) {
   return null;
 }
 
+const VOTE_MAX = 10;
+
+/**
+ * Retourne le nombre de votes restants pour une relation (max 10).
+ * Calcul : 10 - nombre de votes distincts déjà enregistrés
+ */
+export async function getVotesRemaining(relationId) {
+  const votes = await listVotes({ relationId, limit: VOTE_MAX });
+  // Compter les votes uniques (un par utilisateur)
+  const uniqueVoters = new Set(votes.map(v => v.discord_id)).size;
+  return Math.max(0, VOTE_MAX - uniqueVoters);
+}
+
+/**
+ * Calcule et met à jour le poids final d'une relation après qu'elle ait 10 votes.
+ * Retourne la relation finalisée ou null si erreur.
+ */
+export async function finalizeRelationAfterVotes(relationId) {
+  try {
+    const relation = await getRelationById(relationId);
+    if (!relation) return null;
+
+    const votes = await listVotes({ relationId, limit: VOTE_MAX });
+    const uniqueVoters = new Set(votes.map(v => v.discord_id)).size;
+
+    // Ne finaliser que si 10 votants uniques
+    if (uniqueVoters < VOTE_MAX) {
+      return null;
+    }
+
+    let scoreTotal = 0;
+    const votesMap = {};
+
+    for (const vote of votes) {
+      const voter = await getUserByDiscordId(vote.discord_id);
+      const voterTrust = voter?.trust_score || 0.5;
+      votesMap[vote.discord_id] = vote.vote * voterTrust;
+    }
+
+    scoreTotal = Object.values(votesMap).reduce((a, b) => a + b, 0);
+
+    const avgScore = scoreTotal / uniqueVoters;
+    let finalWeight = 0;
+
+    if (avgScore > 0.2) {
+      finalWeight = Math.floor(avgScore * 500);
+    } else if (avgScore < -0.2) {
+      finalWeight = Math.floor(avgScore * 100);
+    } else {
+      finalWeight = 0;
+    }
+
+    let newStatus = "pending";
+    if (avgScore > 0.2) {
+      newStatus = "accepted";
+    } else if (avgScore < -0.2) {
+      newStatus = "rejected";
+    }
+
+    // Mettre à jour la relation
+    const { data, error } = await supabase
+      .from("relations")
+      .update({
+        weight: finalWeight,
+        statut: newStatus,
+      })
+      .eq("id", relationId)
+      .select(RELATION_SELECT);
+
+    if (error) {
+      console.error("Erreur finalizeRelationAfterVotes:", error.message);
+      return null;
+    }
+
+    console.log(`[DB] Relation ${relationId} finalisée: statut=${newStatus}, weight=${finalWeight}`);
+    return data?.[0] || null;
+  } catch (error) {
+    console.error("Erreur finalizeRelationAfterVotes:", error);
+    return null;
+  }
+}
+
 export async function voteRelation(relationId, voterId, weight) {
   try {
     const relation = await getRelationById(relationId);
@@ -216,7 +300,16 @@ export async function voteRelation(relationId, voterId, weight) {
       return { success: false, error: "Tu as déjà voté pour cette information." };
     }
 
-    return { success: true };
+    // Vérifier si la relation doit être finalisée (10 votants)
+    const votesRemaining = await getVotesRemaining(relationId);
+    const finalized = await finalizeRelationAfterVotes(relationId);
+
+    return {
+      success: true,
+      votesRemaining,
+      finalized: finalized !== null,
+      finalizedRelation: finalized,
+    };
   } catch (error) {
     console.error("Erreur voteRelation:", error);
     return { success: false, error: "Erreur technique lors du vote." };
@@ -238,6 +331,7 @@ function normalizeEstVraiValue(value) {
 
 /**
  * Ajoute une nouvelle connaissance proposée par un utilisateur dans la table relations.
+ * Vérifie d'abord que l'utilisateur a un trust_score >= 0.7.
  */
 export async function addProposition(
   discordId,
@@ -247,6 +341,13 @@ export async function addProposition(
   estVrai,
   contexte = null,
 ) {
+  // Vérifier trust_score >= 0.7
+  const user = await getUserByDiscordId(discordId);
+  if (!user || user.trust_score < 0.7) {
+    console.warn(`[DB] Utilisateur ${discordId} n'a pas assez de confiance (${user?.trust_score || 0}). Minimum: 0.7`);
+    return { success: false, error: "Ton score de fiabilité est insuffisant pour proposer des relations. (Minimum: 0.7)" };
+  }
+
   const normalizedEstVrai = normalizeEstVraiValue(estVrai);
 
   const { data, error } = await supabase
@@ -260,16 +361,18 @@ export async function addProposition(
         est_vrai: normalizedEstVrai,
         contexte_annotation: contexte,
         statut: "pending",
+        weight: 0,
+        proposer_trust_score: user.trust_score,
       },
     ])
     .select(RELATION_SELECT);
 
   if (error) {
     console.error("Erreur lors de l'ajout de la proposition :", error.message);
-    return null;
+    return { success: false, error: error.message };
   }
 
-  return data;
+  return { success: true, data: data };
 }
 
 export async function getSupabaseHealth() {

@@ -29,7 +29,11 @@ function isWhyQuestion(text) {
 }
 
 function isAffirmation(text) {
-  const t = normalizeText(text);
+  const trimmed = text.trim();
+  // On triche, s'il se termine par un point alors on va dire que c'est une affirmation sinon il ne la détecte qu'une fois sur deux.
+  if (trimmed.endsWith(".")) return true;
+
+  const t = normalizeText(trimmed);
   if (!t || t.endsWith("?")) return false;
 
   const affirmativePatterns = [
@@ -132,11 +136,11 @@ export async function processUserRequest(userId, userName, userMessage) {
     "comment", "pourquoi", "parce", "parle", "parler", "connais", "connaitre",
     "moi", "toi", "lui", "elle", "nous", "vous", "ils", "elles", "ce", "cet", "cette"
   ]);
-  
+
   const tokens = (normalizedMessage.match(/[a-z0-9]+/g) || [])
     .filter(t => t.length > 2)
     .filter(t => !stopwords.has(t));
-    
+
   const candidates = [];
   const seen = new Set();
   const addCandidate = (value) => {
@@ -180,7 +184,7 @@ export async function processUserRequest(userId, userName, userMessage) {
       role: "system",
       content: `MODE EXPLICATION : l'utilisateur pose une question de type "pourquoi". Tu dois privilégier une explication causale ou déductive en t'appuyant sur JeuxDeMots avec une chaîne de raisonnement explicite. Utilise en priorité r_isa, r_carac, r_lieu, r_agent, r_patient, r_has_part si pertinent.`
     });
-    
+
     if (detectWhyClaim(userMessage)) {
       console.log("[DETECTION] Question de type 'pourquoi' avec affirmation détectée, ajout d'instruction d'analyse");
       messages.push({
@@ -272,13 +276,13 @@ export async function processUserRequest(userId, userName, userMessage) {
   if (isTrap) {
     const trap = await generateDynamicTrap();
     if (trap) {
-    additionalComponent = new ActionRowBuilder().addComponents(
+      additionalComponent = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`votetrap_vrai_${trap.reponse_attendue}_${trap.id}`).setLabel("C'est vrai").setStyle(ButtonStyle.Success),
         new ButtonBuilder().setCustomId(`votetrap_faux_${trap.reponse_attendue}_${trap.id}`).setLabel("C'est faux").setStyle(ButtonStyle.Danger),
         new ButtonBuilder().setCustomId(`votetrap_skip_${trap.reponse_attendue}_${trap.id}`).setLabel('Je ne sais pas').setStyle(ButtonStyle.Secondary)
-    );
-    const statement = formatValidationStatement(trap.terme_source, trap.type_relation, trap.terme_cible);
-      additionalContent = `D'ailleurs, pour verifier... On m'a affirme que **${statement}**. Tu valides ?`;
+      );
+      const statement = formatValidationStatement(trap.terme_source, trap.type_relation, trap.terme_cible);
+      additionalContent = `D'ailleurs, pour verifier... On m'a affirmé que **${statement}**. Tu valides ?`;
     }
   } else if (pendingInfo && !pendingInfoVoted) {
     additionalComponent = new ActionRowBuilder().addComponents(

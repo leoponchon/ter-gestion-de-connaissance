@@ -351,7 +351,7 @@ Format strict :
   "source": "Boeing 747",
   "relation": "r_has_part",
   "cible": "4 moteurs",
-  "estVrai": true,
+  "estVrai": "true",
   "contexte": "Configuration moteur classique du 747"
 }
 [/KNOWLEDGE]

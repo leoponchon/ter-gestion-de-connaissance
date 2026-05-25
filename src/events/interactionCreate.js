@@ -299,7 +299,19 @@ export default function interactionCreateHandler(discordClient) {
           return await interaction.reply({ content: result.error });
         }
 
-        await interaction.reply({ content: "Vote enregistré ! Merci pour ton retour." });
+        // Vote accepté
+        let replyMessage = "Vote enregistré ! Merci pour ton retour.";
+
+        if (result.votesRemaining !== undefined && result.votesRemaining > 0) {
+          replyMessage += `\n\nIl reste **${result.votesRemaining}** validation(s) avant que cette information soit finalisée.`;
+        } else if (result.finalized && result.finalizedRelation) {
+          const finalRel = result.finalizedRelation;
+          const statusEmoji = finalRel.statut === "accepted" ? "✅" : "❌";
+          const statusText = finalRel.statut === "accepted" ? "VALIDÉE" : "REJETÉE";
+          replyMessage += `\n\n${statusEmoji} Information maintenant **${statusText}** !\nPoids final: **${finalRel.weight}**`;
+        }
+
+        await interaction.reply({ content: replyMessage });
         await interaction.message.edit({ components: [] });
       } catch (error) {
         console.error("Erreur vote:", error);

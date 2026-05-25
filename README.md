@@ -114,25 +114,67 @@ curl "http://localhost:8080/api/relations?status=pending&limit=10"
 
 **users**
 - `discord_id` (text, PK)
-- `trust_score` (float, défaut 0.5)
+- `trust_score` (float, défaut 0.5, range [0, 1])
 - `created_at` (timestamp)
 
 **relations**
 - `id` (uuid, PK)
 - `discord_id` (FK users)
 - `terme_source`, `type_relation`, `terme_cible` (text)
-- `est_vrai` (boolean)
-- `contexte_annotation` (text)
+- `est_vrai` (string: "true" / "false" / "maybe") - intention du proposant
+- `contexte_annotation` (text) - annotations optionnelles ("aux USA", "en été", etc.)
+- `weight` (integer, défaut 0) - poids de vérité final (-200 à +1000)
+  - **Négatif** : relation fausse
+  - **0** : incertain ou nouvellement proposée
+  - **Positif** : relation vraie (plus la valeur est haute, plus on a confiance)
+  - **> 1000** : relations acceptées avec haute confiance (utilisé pour pièges vrais)
+- `proposer_trust_score` (float) - score de confiance du proposant au moment de l'ajout
 - `statut` (text: pending / accepted / rejected)
+  - `pending` : en attente de votes (< 10 votants)
+  - `accepted` : validée après 10 votes avec score moyen positif
+  - `rejected` : rejetée après 10 votes avec score moyen négatif
 - `created_at` (timestamp)
 
 **validate**
 - `id` (uuid, PK)
 - `relation_id` (FK relations, ON DELETE CASCADE)
-- `discord_id` (FK users)
-- `vote` (integer: 1 ou -1)
-- Contrainte UNIQUE: `(relation_id, discord_id)`
+- `discord_id` (FK users) - votant
+- `vote` (integer: 1 = vrai, -1 = faux)
+- Contrainte UNIQUE: `(relation_id, discord_id)` - un vote par personne par relation
 - `created_at` (timestamp)
+
+### Système de Validation et Poids
+
+**Workflow d'ajout de relation** :
+1. Utilisateur propose : "Un hotdog contient de la moutarde."
+2. Bot extrait : `{ source: "hotdog", relation: "r_has_part", cible: "moutarde", est_vrai: "true" }`
+3. Vérification : `trust_score >= 0.7` ?
+   - **Oui** → Relation ajoutée avec `weight=0`, `statut=pending`
+   - **Non** → Rejet : "Ton score de fiabilité insuffisant (min 0.7)"
+4. Bot pose la question à d'autres utilisateurs via boutons
+
+**Workflow de validation** :
+1. 10 utilisateurs **distincts** votent (1 vote par personne)
+2. Après le 10e vote unique, calcul automatique :
+   ```
+   avgScore = SUM(vote * votant_trust_score) / 10
+   ```
+3. **Détermination du statut** :
+   - `avgScore > 0.2` → `accepted`, `weight = avgScore * 500` (0 à 1000+)
+   - `avgScore < -0.2` → `rejected`, `weight = avgScore * 100` (-200 à 0)
+   - `-0.2 <= avgScore <= 0.2` → `pending`, `weight = 0` (incertain)
+4. Relation finalisée, relation supprimée des validations
+
+**Pièges dynamiques** :
+- **Vrais (60%)** : Relations `accepted` avec `weight > 1000` → réponse attendue = "vrai"
+- **Faux (40%)** : Combinaisons aléatoires n'existant nulle part en BD/JDM → réponse attendue = "faux"
+
+### Priorité de recherche
+
+Quand l'utilisateur parle d'un sujet :
+1. Chercher d'abord dans `relations` avec `statut = "accepted"` (BD locale validée)
+2. Fallback → API JeuxDeMots
+3. Si aucune → répondre sans données de soutien
 
 ## Utilisation
 
@@ -188,13 +230,11 @@ Bot: [deuxième message] "D'ailleurs, quelqu'un a dit que Boeing 747 a 4 moteurs
 - [API JeuDeMots](https://jdm-api.demo.lirmm.fr/schema)
 - [Documentation Discord.js](https://discord.js.org/)
 - [Consignes du projet](./consignes.txt)
-- [Résumé des changements](./resume-changements.txt)
 
 ## À Faire (priorité)
 
-- [ ] Dashboard/interface pour validation humaine des votes
-- [ ] Calcul du trust_score après validation humaine
-- [ ] Mise à jour du statut `relations` après validation
+- [ ] Affiner le calcul du weight
+- [ ] Dashboard/interface pour visualiser les votes
 - [ ] Gestion des contextes ("aux USA", "en été", etc.)
 - [ ] Meilleure inférence des relations par type
 - [ ] Tests et optimisations API JeuDeMots
@@ -202,7 +242,8 @@ Bot: [deuxième message] "D'ailleurs, quelqu'un a dit que Boeing 747 a 4 moteurs
 
 ## Workflow futur (après validation humaine)
 
-1. Admin/modérateur voit les votes dans `validate`
-2. Décide si la relation est vraie/fausse/incertaine
-3. Update `relations.statut` et `users.trust_score`
-4. Propose correction à JeuDeMots ou enrichissement local
+1. Utilisateur propose relation (si trust_score >= 0.7)
+2. Relation insérée avec `weight=0, statut=pending`
+3. Bot pose question à 10 utilisateurs différents
+4. Après 10e vote unique → calcul automatique + finalization
+5. Relation → `accepted` ou `rejected` avec weight calculé
