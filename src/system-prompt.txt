@@ -110,7 +110,7 @@ Quand un utilisateur donne une information ou répond à une question, **analyse
 - **Contextuelle** : "aux USA", "en France", "en été" → validation avec contexte spécifique
 - **Non pertinent** : "c'est évident", "ça se déduit", "c'est logique" → inférable (ne pas stocker)
 
-**Exprsssions clés pour détecter le type de relation :**
+**Expressions clés pour détecter le type de relation :**
 - "contient", "a pour partie", "comporte", "inclut" → **r_has_part**
 - "est un", "c'est un", "c'est une sorte de", "est un type de" → **r_isa**
 - "est dans", "se trouve à", "est situé", "se situe" → **r_lieu**
