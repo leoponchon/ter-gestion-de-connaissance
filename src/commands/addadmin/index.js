@@ -16,11 +16,11 @@ export default {
   adminOnly: true,
   async execute(interaction) {
     const user = interaction.options.getUser("user");
-    if (!user) return interaction.reply({ content: "Utilisateur invalide.", ephemeral: true });
+    if (!user) return interaction.reply({ content: "Utilisateur invalide.",  });
 
     const result = await admins.addAdmin(user.id);
-    if (!result.success) return interaction.reply({ content: `Erreur ajout admin: ${result.error}`, ephemeral: true });
+    if (!result.success) return interaction.reply({ content: `Erreur ajout admin: ${result.error}`,  });
 
-    return interaction.reply({ content: `Utilisateur <@${user.id}> ajouté à la liste des administrateurs.`, ephemeral: true });
+    return interaction.reply({ content: `Utilisateur <@${user.id}> ajouté à la liste des administrateurs.`,  });
   }
 };

@@ -20,14 +20,14 @@ export default function interactionCreateHandler(discordClient) {
         // route to loaded command modules
         const cmdModule = discordClient.commands && discordClient.commands.get(interaction.commandName);
         if (!cmdModule) {
-          return interaction.reply({ content: "Commande inconnue.", ephemeral: true }).catch(() => {});
+          return interaction.reply({ content: "Commande inconnue.",  }).catch(() => {});
         }
 
         // admin-only guard
         if (cmdModule.adminOnly) {
           const allowed = await admins.isAdmin(interaction.user.id);
           if (!allowed) {
-            return interaction.reply({ content: "Accès refusé : commande réservée aux administrateurs.", ephemeral: true }).catch(() => {});
+            return interaction.reply({ content: "Accès refusé : commande réservée aux administrateurs.",  }).catch(() => {});
           }
         }
 

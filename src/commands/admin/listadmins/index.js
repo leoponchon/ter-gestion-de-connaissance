@@ -8,9 +8,9 @@ export default {
   adminOnly: true,
   async execute(interaction) {
     const list = await admins.listAdmins();
-    if (!list || list.length === 0) return interaction.reply({ content: "Aucun administrateur configuré.", ephemeral: true });
+    if (!list || list.length === 0) return interaction.reply({ content: "Aucun administrateur configuré.",  });
 
     const mentions = list.map(id => `<@${id}>`).join("\n");
-    return interaction.reply({ content: `Liste des administrateurs :\n${mentions}`, ephemeral: true });
+    return interaction.reply({ content: `Liste des administrateurs :\n${mentions}` });
   }
 };
