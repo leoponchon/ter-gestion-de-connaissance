@@ -150,13 +150,18 @@ export async function processUserRequest(userId, userName, userMessage) {
   tokens.forEach(token => addCandidate(token));
 
   let pendingInfo = null;
+  let pendingInfoVoted = false;
   for (const candidate of candidates) {
     if (candidate.length < 4) continue;
     pendingInfo = await getPendingKnowledgeForTerm(candidate);
     if (!pendingInfo && candidate.endsWith('s')) {
       pendingInfo = await getPendingKnowledgeForTerm(candidate.slice(0, -1));
     }
-    if (pendingInfo) break;
+    if (pendingInfo) {
+      pendingInfoVoted = await hasUserVoted(pendingInfo.id, userId);
+      if (pendingInfoVoted) continue;
+      break;
+    }
   }
 
   // Préparation du contexte LLM
@@ -170,24 +175,19 @@ export async function processUserRequest(userId, userName, userMessage) {
   }
 
   if (isWhyQuestion(userMessage)) {
+    console.log("[DETECTION] Question de type 'pourquoi' détectée");
     messages.push({
       role: "system",
       content: `MODE EXPLICATION : l'utilisateur pose une question de type "pourquoi". Tu dois privilégier une explication causale ou déductive en t'appuyant sur JeuxDeMots avec une chaîne de raisonnement explicite. Utilise en priorité r_isa, r_carac, r_lieu, r_agent, r_patient, r_has_part si pertinent.`
     });
     
     if (detectWhyClaim(userMessage)) {
+      console.log("[DETECTION] Question de type 'pourquoi' avec affirmation détectée, ajout d'instruction d'analyse");
       messages.push({
         role: "system",
         content: `QUESTION ANALYSÉE : sujet probable = "${whyInfo.subject}", propriété probable = "${whyInfo.property}". Vérifie d'abord si cette propriété existe directement, sinon cherche une chaîne d'inférence.`
       });
     }
-  }
-
-  if (isAffirmation(userMessage)) {
-    messages.push({
-      role: "system",
-      content: "L'utilisateur a fait une affirmation déclarative. Vérifie sa crédibilité comme indiqué dans la section de vérification de crédibilité. Si elle est plausible ou confirmée, traite-la comme une information à extraire et expose le cas échéant un bloc [KNOWLEDGE]."
-    });
   }
 
   messages.push(...history);
@@ -199,6 +199,14 @@ export async function processUserRequest(userId, userName, userMessage) {
       role: "system",
       content: `INSTRUCTION DE VALIDATION : Quelqu'un a affirmé que "${pendingInfo.terme_source} ${pendingInfo.type_relation} ${pendingInfo.terme_cible}". 
           Réponds à l'utilisateur normalement, sans poser de question de validation. La validation sera envoyée séparément.`
+    });
+
+    // Ici c'est s'il n'a rien trouvé
+  } else if (isAffirmation(userMessage)) {
+    console.log("[DETECTION] Affirmation détectée, ajout d'instruction de traitement comme connaissance");
+    messages.push({
+      role: "system",
+      content: "L'utilisateur a fait une affirmation déclarative. Traite-la comme une information à extraire et expose le cas échéant un bloc [KNOWLEDGE]."
     });
   }
 
@@ -233,22 +241,32 @@ export async function processUserRequest(userId, userName, userMessage) {
 
   // Extraction de NOUVELLES connaissances
   const knowledgeMatch = finalResponse.match(/\[KNOWLEDGE\]([\s\S]*?)\[\/KNOWLEDGE\]/i);
+  let propositionError = null;
   if (!pendingInfo && knowledgeMatch) {
     try {
       const extraction = JSON.parse(knowledgeMatch[1]);
-      await addProposition(userId, extraction.source, extraction.relation, extraction.cible, extraction.estVrai, extraction.contexte);
+      const result = await addProposition(userId, extraction.source, extraction.relation, extraction.cible, extraction.estVrai, extraction.contexte);
+      if (!result.success) {
+        propositionError = result.error;
+        console.warn("[DB] Proposition rejetee:", propositionError);
+      } else {
+        console.log("[DB] Proposition acceptee et ajoutee");
+      }
     } catch (e) {
       console.error("[DB] Erreur JSON:", e.message);
+      propositionError = "Erreur lors du traitement de la proposition.";
     }
   }
   if (knowledgeMatch) {
     finalResponse = finalResponse.replace(/\[KNOWLEDGE\]([\s\S]*?)\[\/KNOWLEDGE\]/g, "").trim();
   }
+  if (propositionError) {
+    finalResponse += `\n\nwarning: ${propositionError}`;
+  }
 
   // Préparation du composant additionnel (piège ou validation)
   let additionalComponent = null;
   let additionalContent = null;
-  
   const isTrap = Math.random() < 0.15;
 
   if (isTrap) {

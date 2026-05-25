@@ -155,6 +155,22 @@ export async function listVotes(filters = {}) {
   return data ?? [];
 }
 
+export async function hasUserVoted(relationId, userId) {
+  try {
+    const { data, error } = await supabase
+      .from("validate")
+      .select("id")
+      .eq("relation_id", relationId)
+      .eq("discord_id", userId)
+      .maybeSingle();
+
+    if (error) return false;
+    return data !== null;
+  } catch (error) {
+    return false;
+  }
+}
+
 export async function getPendingKnowledgeForTerm(term) {
   console.log(`[DB] Recherche en cours pour le mot-clé: ${term}`);
 
