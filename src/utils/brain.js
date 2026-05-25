@@ -2,11 +2,12 @@ import fs from "fs";
 import conversations from "./conversations.js";
 import { continueToolCall } from "./openrouter.js";
 import { TOOLS, TOOL_FUNCTIONS } from "./jdm.js";
-import { addProposition, getPendingKnowledgeForTerm } from "./supabase.js";
-import { getRandomTrap } from "./traps.js";
+import { addProposition, getPendingKnowledgeForTerm, hasUserVoted } from "./supabase.js";
+import { generateDynamicTrap } from "./dynamicTraps.js";
 import { logSession } from "./logger.js";
 import config from "../config.js";
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
+import { formatValidationStatement } from "./formatValidationStatement.js";
 
 const SYSTEM_PROMPT = fs.readFileSync("src/system-prompt.txt", "utf-8");
 
@@ -77,12 +78,12 @@ export function detectTopic(text) {
   // Fallback: extract the most prominent noun-like token
   // Skip stopwords and short tokens, take the longest remaining candidate
   const stopwords = new Set([
-    "le","la","les","un","une","des","du","de","d","a","au","aux",
-    "et","ou","mais","donc","or","ni","car","que","qui","quoi","dont",
-    "comment","pourquoi","parce","salut","bonjour","dis","moi","toi",
-    "lui","elle","nous","vous","ils","elles","ce","cet","cette","ça",
-    "est","sont","était","avait","fait","peut","avoir","être","vrai",
-    "faux","non","oui","pas","plus","très","bien","mal","tout","rien"
+    "le", "la", "les", "un", "une", "des", "du", "de", "d", "a", "au", "aux",
+    "et", "ou", "mais", "donc", "or", "ni", "car", "que", "qui", "quoi", "dont",
+    "comment", "pourquoi", "parce", "salut", "bonjour", "dis", "moi", "toi",
+    "lui", "elle", "nous", "vous", "ils", "elles", "ce", "cet", "cette", "ça",
+    "est", "sont", "était", "avait", "fait", "peut", "avoir", "être", "vrai",
+    "faux", "non", "oui", "pas", "plus", "très", "bien", "mal", "tout", "rien"
   ]);
 
   const tokens = cleaned
@@ -112,43 +113,6 @@ function detectWhyClaim(text) {
     subject: match[1].trim(),
     property: match[2].trim()
   };
-}
-
-function chooseArticleForTarget(target) {
-  const trimmed = target.trim();
-  const lower = trimmed.toLowerCase();
-  if (
-    lower.startsWith("un ") || lower.startsWith("une ") ||
-    lower.startsWith("des ") || lower.startsWith("le ") ||
-    lower.startsWith("la ") || lower.startsWith("les ") ||
-    lower.startsWith("l'")
-  ) {
-    return { article: "", target: trimmed };
-  }
-  const article = lower.endsWith("e") ? "une" : "un";
-  return { article, target: trimmed };
-}
-
-function formatValidationStatement(source, relation, target) {
-  switch (relation) {
-    case "r_has_part": return `${source} a ${target}`;
-    case "r_isa": {
-      const { article, target: cleanTarget } = chooseArticleForTarget(target);
-      return article ? `${source} est ${article} ${cleanTarget}` : `${source} est ${cleanTarget}`;
-    }
-    case "r_hypo": return `${target} est un type de ${source}`;
-    case "r_lieu": return `${source} est dans ${target}`;
-    case "r_agent": return `${source} est fait par ${target}`;
-    case "r_patient": return `${source} agit sur ${target}`;
-    case "r_carac": return `${source} est ${target}`;
-    case "r_syn": return `${source} est un synonyme de ${target}`;
-    case "r_anto": return `${source} est un contraire de ${target}`;
-    case "r_object>mater": return `${source} est fait de ${target}`;
-    case "r_telic_role": return `${source} sert a ${target}`;
-    case "r_instr": return `${source} s'utilise avec ${target}`;
-    case "r_associated": return `${source} est associe a ${target}`;
-    default: return `${source} a ${target}`;
-  }
 }
 
 /**
@@ -229,6 +193,7 @@ export async function processUserRequest(userId, userName, userMessage) {
   messages.push(...history);
   messages.push({ role: "user", content: userMessage });
 
+  // Ici c'est uniquement si le bot trouve dans la base de donnée une relation
   if (pendingInfo) {
     messages.push({
       role: "system",
@@ -287,15 +252,17 @@ export async function processUserRequest(userId, userName, userMessage) {
   const isTrap = Math.random() < 0.15;
 
   if (isTrap) {
-    const trap = getRandomTrap();
+    const trap = await generateDynamicTrap();
+    if (trap) {
     additionalComponent = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId(`votetrap_vrai_${trap.id}`).setLabel("C'est vrai").setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId(`votetrap_faux_${trap.id}`).setLabel("C'est faux").setStyle(ButtonStyle.Danger),
-      new ButtonBuilder().setCustomId(`votetrap_skip_trap`).setLabel('Je ne sais pas').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId(`votetrap_vrai_${trap.reponse_attendue}_${trap.id}`).setLabel("C'est vrai").setStyle(ButtonStyle.Success),
+        new ButtonBuilder().setCustomId(`votetrap_faux_${trap.reponse_attendue}_${trap.id}`).setLabel("C'est faux").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId(`votetrap_skip_${trap.reponse_attendue}_${trap.id}`).setLabel('Je ne sais pas').setStyle(ButtonStyle.Secondary)
     );
     const statement = formatValidationStatement(trap.terme_source, trap.type_relation, trap.terme_cible);
-    additionalContent = `D'ailleurs, pour vérifier... On m'a affirmé que **${statement}**. Tu valides ?`;
-  } else if (pendingInfo) {
+      additionalContent = `D'ailleurs, pour verifier... On m'a affirme que **${statement}**. Tu valides ?`;
+    }
+  } else if (pendingInfo && !pendingInfoVoted) {
     additionalComponent = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`vote_up_${pendingInfo.id}`).setLabel("C'est vrai").setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId(`vote_down_${pendingInfo.id}`).setLabel("C'est faux").setStyle(ButtonStyle.Danger),

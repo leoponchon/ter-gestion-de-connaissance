@@ -1,12 +1,13 @@
 import { voteRelation, updateTrustScore, ensureUserExists, listRelations } from "../utils/supabase.js";
 import { processUserRequest } from "../utils/brain.js";
 import conversations from "../utils/conversations.js";
-import { TRAPS } from "../utils/traps.js";
+import { generateDynamicTrap } from "../utils/dynamicTraps.js";
+import { formatValidationStatement } from "../utils/formatValidationStatement.js";
 import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs";
 import path from "path";
-import { EmbedBuilder, AttachmentBuilder } from "discord.js";
+import { EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from "discord.js";
 
 const execAsync = promisify(exec);
 const startupTime = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
@@ -24,7 +25,7 @@ export default function interactionCreateHandler(discordClient) {
             try {
               const stats = await fs.promises.stat("package.json");
               lastUpdate = stats.mtime.toLocaleString("fr-FR");
-            } catch (err) {}
+            } catch (err) { }
           }
 
           return interaction.reply({
@@ -221,34 +222,59 @@ export default function interactionCreateHandler(discordClient) {
           return;
         }
 
+        if (interaction.commandName === "trap") {
+          try {
+            await interaction.deferReply();
+          } catch (err) {
+            if (err.code === 10062) return;
+            throw err;
+          }
+
+          const trap = await generateDynamicTrap();
+          if (trap) {
+            const trapActionRow = new ActionRowBuilder().addComponents(
+              new ButtonBuilder().setCustomId(`votetrap_vrai_${trap.reponse_attendue}_${trap.id}`).setLabel("C'est vrai").setStyle(ButtonStyle.Success),
+              new ButtonBuilder().setCustomId(`votetrap_faux_${trap.reponse_attendue}_${trap.id}`).setLabel("C'est faux").setStyle(ButtonStyle.Danger),
+              new ButtonBuilder().setCustomId(`votetrap_skip_${trap.reponse_attendue}_${trap.id}`).setLabel('Je ne sais pas').setStyle(ButtonStyle.Secondary)
+            );
+            const statement = formatValidationStatement(trap.terme_source, trap.type_relation, trap.terme_cible);
+
+            await interaction.editReply({
+              content: `**Question de contrôle** : ${statement} ?`,
+              components: [trapActionRow]
+            });
+          } else {
+            await interaction.editReply({
+              content: `Erreur : impossible de générer de nouvelles questions de contrôle pour le moment.`
+            });
+          }
+          return;
+        }
+
         return;
       }
 
       if (!interaction.isButton()) return;
 
-      if (interaction.customId === "votetrap_skip_trap") {
-        await interaction.reply({ content: "Vous avez ignoré la question de contrôle." });
-        await interaction.message.edit({ components: [] });
-        return;
-      }
-
       if (interaction.customId.startsWith("votetrap_")) {
         const parts = interaction.customId.split("_");
         const vote = parts[1];
-        const trapId = parts[2];
+        const reponseAttendue = parts[2];
         const voterId = interaction.user.id;
 
-        const trap = TRAPS.find(t => t.id === trapId);
-        if (!trap) {
-          return interaction.reply({ content: "Erreur : Piège introuvable." });
+        if (vote === "skip") {
+          await interaction.reply({ content: `Pas de problème ! La bonne réponse était : **${reponseAttendue === "vrai" ? "C'est vrai ✅" : "C'est faux ❌"}**.` });
+          await interaction.message.edit({ components: [] });
+          return;
         }
 
-        const delta = vote === trap.reponse_attendue ? 0.05 : -0.15;
+        const isCorrect = vote === reponseAttendue;
+        const delta = isCorrect ? 0.05 : -0.15;
         await updateTrustScore(voterId, delta);
 
-        const messageContent = vote === trap.reponse_attendue
-          ? "✅ Bonne réponse ! C'était une question de contrôle. Ton score de fiabilité a augmenté."
-          : "❌ Raté ! C'était une question de contrôle. Ton score de fiabilité a diminué pour éviter le spam.";
+        const messageContent = isCorrect
+          ? `✅ Bonne réponse ! C'était bien **${reponseAttendue === "vrai" ? "vrai" : "faux"}**. Ton score de fiabilité a augmenté.`
+          : `❌ Raté ! La bonne réponse était **${reponseAttendue === "vrai" ? "vrai" : "faux"}**. Ton score de fiabilité a diminué.`;
 
         await interaction.reply({ content: messageContent });
         await interaction.message.edit({ components: [] });

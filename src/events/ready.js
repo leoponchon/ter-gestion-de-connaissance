@@ -45,6 +45,10 @@ export default function readyHandler(client) {
               min_value: 1,
             },
           ],
+        },
+        {
+          name: "trap",
+          description: "Pose une question a l'utilisateur sur le sujet de sa connaissance"
         }
       ];
 
