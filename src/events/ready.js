@@ -1,59 +1,51 @@
+import fs from "fs";
+import path from "path";
+import { pathToFileURL } from "url";
+
+async function loadCommandsFromDir(commandsPath) {
+  const cmds = [];
+  const map = new Map();
+
+  if (!fs.existsSync(commandsPath)) return { cmds, map };
+
+  const entries = await fs.promises.readdir(commandsPath, { withFileTypes: true });
+
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    const indexPath = path.join(commandsPath, entry.name, "index.js");
+    if (!fs.existsSync(indexPath)) continue;
+    try {
+      const mod = await import(pathToFileURL(indexPath).href);
+      const exported = mod.default || mod;
+      if (!exported || !exported.command) continue;
+      cmds.push(exported.command);
+      map.set(exported.command.name, exported);
+    } catch (err) {
+      console.warn(`Impossible de charger la commande ${entry.name}:`, err.message);
+    }
+  }
+
+  return { cmds, map };
+}
+
 export default function readyHandler(client) {
   client.once("clientReady", async () => {
     console.log(`${client.user.tag} prêt à discuter !`);
     client.user.setActivity("Discute avec les utilisateurs !");
 
     try {
-      const commands = [
-        {
-          name: "maj",
-          description: "Indique la date de la dernière mise à jour du bot"
-        },
-        {
-          name: "help",
-          description: "Affiche l'aide et explique le fonctionnement du bot"
-        },
-        {
-          name: "trust",
-          description: "Indique ton score de fiabilité"
-        },
-        {
-          name: "chat",
-          description: "Engage une conversation avec le bot",
-          options: [
-            {
-              name: "question",
-              type: 3, // string en gros
-              description: "La question que tu veux poser",
-              required: true
-            }
-          ]
-        },
-        {
-          name: "export",
-          description: "Exporte toutes les relations locales de la base de données au format Markdown"
-        },
-        {
-          name: "log",
-          description: "Lit le dernier fichier de log ou le nième dernier log",
-          options: [
-            {
-              name: "n",
-              type: 4,
-              description: "Indice du log depuis le plus récent (1 = dernier)",
-              required: false,
-              min_value: 1,
-            },
-          ],
-        },
-        {
-          name: "trap",
-          description: "Pose une question a l'utilisateur sur le sujet de sa connaissance"
-        }
-      ];
+      const commandsPath = path.join(process.cwd(), "src", "commands");
+      const { cmds, map } = await loadCommandsFromDir(commandsPath);
 
-      await client.application.commands.set(commands);
-      console.log("Commandes slash (/maj, /help, /trust, /chat, /export, /log) enregistrées !");
+      // store commands map on client for interaction handler
+      client.commands = map;
+
+      if (cmds.length > 0 && client.application) {
+        await client.application.commands.set(cmds);
+        console.log(`Commandes slash enregistrées (${cmds.length}).`);
+      } else {
+        console.log("Aucune commande slash trouvée à enregistrer.");
+      }
     } catch (error) {
       console.error("Erreur lors de l'enregistrement des commandes:", error);
     }
