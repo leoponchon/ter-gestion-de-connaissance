@@ -167,6 +167,10 @@ export async function processUserRequest(userId, userName, userMessage) {
       break;
     }
   }
+  // Si l'utilisateur a déjà voté sur toutes les relations trouvées, on remet pendingInfo à null
+  // pour ne pas bloquer le chemin d'affirmation ni l'insertion en base.
+  if (pendingInfoVoted) pendingInfo = null;
+
 
   // Préparation du contexte LLM
   let messages = [{ role: "system", content: SYSTEM_PROMPT }];
@@ -284,7 +288,7 @@ export async function processUserRequest(userId, userName, userMessage) {
       const statement = formatValidationStatement(trap.terme_source, trap.type_relation, trap.terme_cible);
       additionalContent = `D'ailleurs, pour verifier... On m'a affirmé que **${statement}**. Tu valides ?`;
     }
-  } else if (pendingInfo && !pendingInfoVoted) {
+  } else if (pendingInfo) {
     additionalComponent = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`vote_up_${pendingInfo.id}`).setLabel("C'est vrai").setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId(`vote_down_${pendingInfo.id}`).setLabel("C'est faux").setStyle(ButtonStyle.Danger),
