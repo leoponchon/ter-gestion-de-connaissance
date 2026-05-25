@@ -361,13 +361,6 @@ Format strict :
 
 INTERDICTION : Ne dis jamais "Je vais enregistrer ça", écris simplement le bloc à la fin.
 
-# PROTOCOLE DE VÉRIFICATION SOCIALE
-Si tu reçois une information système indiquant une connaissance "PENDING" :
-1. Réponds d'abord de manière complète et naturelle à la question de l'utilisateur.
-2. Dans un second paragraphe, fais une transition fluide pour poser la question de validation. 
-   Exemple : "D'ailleurs, à ce sujet, quelqu'un m'a dit que [Source] [Relation] [Cible]. Tu en penses quoi, c'est correct ?"
-3. Ne mets JAMAIS le bloc [KNOWLEDGE] si tu es en train de demander une validation.
-
 # PROTOCOLE D'INFÉRENCE LOGIQUE (Triangle Logique & Transitivité)
 
 Si une réponse directe n'est pas trouvée dans la base (ex: A r B n'existe pas), tu DOIS tenter une inférence avant d'abandonner :
