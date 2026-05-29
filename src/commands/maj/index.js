@@ -2,6 +2,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 import fs from "fs";
 const execAsync = promisify(exec);
+const startupTime = new Date().toLocaleString("fr-FR", { timeZone: "Europe/Paris" });
 
 export default {
   command: {
@@ -12,17 +13,17 @@ export default {
   async execute(interaction) {
     let lastUpdate = "Inconnue";
     try {
-    const { stdout } = await execAsync("git log -1 --format='%cd' --date=format:'%d/%m/%Y à %H:%M:%S'");
-    lastUpdate = stdout.trim();
+      const { stdout } = await execAsync("git log -1 --format='%cd' --date=format:'%d/%m/%Y à %H:%M:%S'");
+      lastUpdate = stdout.trim();
     } catch (e) {
-    try {
+      try {
         const stats = await fs.promises.stat("package.json");
         lastUpdate = stats.mtime.toLocaleString("fr-FR");
-    } catch (err) { }
+      } catch (err) { }
     }
 
     return interaction.reply({
-        content: `🤖 Dernière mise à jour du code : **${lastUpdate}**\n🔄 Dernier redémarrage du bot : **${startupTime}**`
+      content: `🤖 Dernière mise à jour du code : **${lastUpdate}**\n🔄 Dernier redémarrage du bot : **${startupTime}**`
     });
   }
 };
