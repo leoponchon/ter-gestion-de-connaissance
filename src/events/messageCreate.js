@@ -1,6 +1,7 @@
 import conversations from "../utils/conversations.js";
 import { ensureUserExists } from "../utils/supabase.js";
 import { processUserRequest, detectTopic } from "../utils/brain.js";
+import allowedChannels from "../utils/allowedChannels.js";
 
 const processingMessages = new Set();
 let isProcessing = false;
@@ -53,19 +54,15 @@ async function processQueue() {
   isProcessing = false;
 }
 
-const channels = [1469129042258169949n, 1472937819537412290n];
-
 export default function messageCreateHandler(discordClient) {
   discordClient.on("messageCreate", async (message) => {
-    if (message.author.bot) return;
 
+    if (message.author.bot) return;
     // Le message est valide s'il vient d'un salon autorisé, OU d'un thread de ce salon, OU d'un thread créé par le bot
     const isThread = message.channel.isThread();
-    // En JS, les ID venant de Discord.js sont des strings, mais `channels` contient des BigInts. On compare prudemment.
-    const parentIdBigInt = isThread && message.channel.parentId ? BigInt(message.channel.parentId) : null;
-    const channelIdBigInt = BigInt(message.channel.id);
+    const parentId = isThread ? message.channel.parentId : null;
 
-    const isAllowedChannel = channels.includes(channelIdBigInt) || (isThread && channels.includes(parentIdBigInt));
+    const isAllowedChannel = await allowedChannels.isAllowed(message.channel.id) || (isThread && parentId && await allowedChannels.isAllowed(parentId));
     const isBotThread = isThread && message.channel.ownerId === discordClient.user.id;
 
     if (!isAllowedChannel) return;

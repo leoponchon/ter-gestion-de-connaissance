@@ -17,7 +17,7 @@ export default {
         },
         {
           name: "🛠️ Commandes disponibles",
-          value: "`/help` : Affiche ce message d'aide.\n`/maj` : Affiche la date de la dernière mise à jour du code et l'heure de son dernier redémarrage."
+          value: "`/help` : Affiche ce message d'aide.\n`/maj` : Affiche la date de la dernière mise à jour du code et l'heure de son dernier redémarrage.\n`/addchannel` : Ajoute un salon autorisé.\n`/removechannel` : Supprime un salon autorisé.\n`/listchannels` : Affiche la liste des salons autorisés."
         }
       )
       .setFooter({ text: "Bot de Gestion de Connaissances (TER)" });
