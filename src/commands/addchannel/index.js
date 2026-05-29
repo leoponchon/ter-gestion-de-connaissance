@@ -17,18 +17,18 @@ export default {
   async execute(interaction) {
     const channel = interaction.options.getChannel("channel");
     if (!channel) {
-      return interaction.reply({ content: "Salon invalide.", ephemeral: true });
+      return interaction.reply({ content: "Salon invalide." });
     }
 
     const result = await allowedChannels.addChannel(channel.id);
     if (!result.success) {
-      return interaction.reply({ content: `Erreur lors de l'ajout du salon : ${result.error || "erreur inconnue"}`, ephemeral: true });
+      return interaction.reply({ content: `Erreur lors de l'ajout du salon : ${result.error || "erreur inconnue"}` });
     }
 
     if (result.alreadyExists) {
-      return interaction.reply({ content: `Le salon <#${channel.id}> est déjà autorisé.`, ephemeral: true });
+      return interaction.reply({ content: `Le salon <#${channel.id}> est déjà autorisé.` });
     }
 
-    return interaction.reply({ content: `Salon <#${channel.id}> ajouté à la liste des salons autorisés.`, ephemeral: true });
+    return interaction.reply({ content: `Salon <#${channel.id}> ajouté à la liste des salons autorisés.` });
   }
 };

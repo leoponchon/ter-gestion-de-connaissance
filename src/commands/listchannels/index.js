@@ -9,10 +9,10 @@ export default {
   async execute(interaction) {
     const channels = await allowedChannels.listChannels();
     if (!channels || channels.length === 0) {
-      return interaction.reply({ content: "Aucun salon autorisé n'a encore été configuré.", ephemeral: true });
+      return interaction.reply({ content: "Aucun salon autorisé n'a encore été configuré." });
     }
 
     const mentions = channels.map((id) => `<#${id}>`).join("\n");
-    return interaction.reply({ content: `Salons autorisés :\n${mentions}`, ephemeral: true });
+    return interaction.reply({ content: `Salons autorisés :\n${mentions}` });
   }
 };
